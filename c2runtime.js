@@ -41130,7 +41130,7 @@ false,false,4969725124143742
 				,[
 				[
 					6,
-					"Login"
+					"Game"
 				]
 				]
 			]
@@ -41332,6 +41332,24 @@ false,false,4969725124143742
 			]
 			],
 			[
+			[
+				6,
+				cr.plugins_.Browser.prototype.acts.Alert,
+				null,
+				4328357985147488
+				,[
+				[
+					7,
+					[
+						20,
+						3,
+						cr.plugins_.AJAX.prototype.exps.LastData,
+						true,
+						null
+					]
+				]
+				]
+			]
 			]
 			,[
 			[
@@ -41487,7 +41505,7 @@ false,false,4969725124143742
 	true,
 	true,
 	true,
-	"1.2.3",
+	"1.2.4",
 	2,
 	true,
 	3,
