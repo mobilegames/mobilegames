@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.moile.games" version="1.2.5">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.mobilegame.myapp" version="1.0.0.1">
 
-	<name>BJ</name>
-	<description>Black Jack</description>
-	<author>Sergey Stupakov</author>
+	<name>Lobby</name>
+	<description>Lobby</description>
+	<author>S. Korenko</author>
 
 	<gap:platforms>
 		<gap:platform name="ios" />
