@@ -28971,6 +28971,24 @@ false,false,4969725124143742
 					],
 					[
 					[
+						6,
+						cr.plugins_.Browser.prototype.acts.Alert,
+						null,
+						6009767974316971
+						,[
+						[
+							7,
+							[
+								20,
+								3,
+								cr.plugins_.AJAX.prototype.exps.LastData,
+								true,
+								null
+							]
+						]
+						]
+					]
+,					[
 						-1,
 						cr.system_object.prototype.acts.SetVar,
 						null,
@@ -36319,6 +36337,36 @@ false,false,4969725124143742
 				]
 ,				[
 					9,
+					cr.plugins_.Audio.prototype.acts.Play,
+					null,
+					2944275731924181
+					,[
+					[
+						2,
+						["bj",false]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+,					[
+						1,
+						[
+							2,
+							"s"
+						]
+					]
+					]
+				]
+,				[
+					9,
 					cr.plugins_.Audio.prototype.acts.Seek,
 					null,
 					1924015706823209
@@ -36348,22 +36396,69 @@ false,false,4969725124143742
 					]
 					]
 				]
-,				[
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				374260400556204,
+				[
+				[
 					9,
-					cr.plugins_.Audio.prototype.acts.SetPaused,
+					cr.plugins_.Audio.prototype.cnds.PreloadsComplete,
 					null,
-					2944275731924181
+					0,
+					false,
+					false,
+					false,
+					9115273692429779
+				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					9121189975391164
 					,[
 					[
-						1,
-						[
-							2,
-							"s"
-						]
+						11,
+						"preload"
 					]
 ,					[
-						3,
-						1
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					6041399544925019
+					,[
+					[
+						11,
+						"preload"
+					]
+,					[
+						7,
+						[
+							0,
+							1
+						]
 					]
 					]
 				]
@@ -41505,7 +41600,7 @@ false,false,4969725124143742
 	true,
 	true,
 	true,
-	"1.2.4",
+	"1.2.5",
 	2,
 	true,
 	3,
