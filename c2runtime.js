@@ -24704,43 +24704,32 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						0,
-						cr.plugins_.Function.prototype.acts.CallFunction,
+						1,
+						cr.plugins_.Audio.prototype.acts.Play,
 						null,
 						5559844499072595
 						,[
 						[
-							1,
+							2,
+							["b_sca",true]
+						]
+,						[
+							3,
+							0
+						]
+,						[
+							0,
 							[
-								2,
-								"playSound"
+								0,
+								0
 							]
 						]
 ,						[
-							13,
-															[
-									7,
-									[
-										1,
-										1.7
-									]
-								]
-,
-								[
-									7,
-									[
-										1,
-										1.75
-									]
-								]
-,
-								[
-									7,
-									[
-										0,
-										0
-									]
-								]
+							1,
+							[
+								2,
+								"s"
+							]
 						]
 						]
 					]
@@ -25109,43 +25098,32 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						0,
-						cr.plugins_.Function.prototype.acts.CallFunction,
+						1,
+						cr.plugins_.Audio.prototype.acts.Play,
 						null,
-						10271495418504
+						4728531484687356
 						,[
 						[
-							1,
+							2,
+							["b_sca",true]
+						]
+,						[
+							3,
+							0
+						]
+,						[
+							0,
 							[
-								2,
-								"playSound"
+								0,
+								0
 							]
 						]
 ,						[
-							13,
-															[
-									7,
-									[
-										1,
-										1.7
-									]
-								]
-,
-								[
-									7,
-									[
-										1,
-										1.75
-									]
-								]
-,
-								[
-									7,
-									[
-										0,
-										0
-									]
-								]
+							1,
+							[
+								2,
+								"s"
+							]
 						]
 						]
 					]
@@ -25553,43 +25531,32 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					0,
-					cr.plugins_.Function.prototype.acts.CallFunction,
+					1,
+					cr.plugins_.Audio.prototype.acts.Play,
 					null,
-					7116260056001991
+					2006562891809799
 					,[
 					[
-						1,
+						2,
+						["b_sca",true]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
 						[
-							2,
-							"playSound"
+							0,
+							0
 						]
 					]
 ,					[
-						13,
-													[
-								7,
-								[
-									1,
-									1.7
-								]
-							]
-,
-							[
-								7,
-								[
-									1,
-									1.75
-								]
-							]
-,
-							[
-								7,
-								[
-									0,
-									0
-								]
-							]
+						1,
+						[
+							2,
+							"s"
+						]
 					]
 					]
 				]
@@ -25714,43 +25681,32 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					0,
-					cr.plugins_.Function.prototype.acts.CallFunction,
+					1,
+					cr.plugins_.Audio.prototype.acts.Play,
 					null,
-					3392439472723697
+					5438646322558028
 					,[
 					[
-						1,
+						2,
+						["b_sca",true]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
 						[
-							2,
-							"playSound"
+							0,
+							0
 						]
 					]
 ,					[
-						13,
-													[
-								7,
-								[
-									1,
-									1.7
-								]
-							]
-,
-							[
-								7,
-								[
-									1,
-									1.75
-								]
-							]
-,
-							[
-								7,
-								[
-									0,
-									0
-								]
-							]
+						1,
+						[
+							2,
+							"s"
+						]
 					]
 					]
 				]
@@ -26035,43 +25991,32 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					0,
-					cr.plugins_.Function.prototype.acts.CallFunction,
+					1,
+					cr.plugins_.Audio.prototype.acts.Play,
 					null,
-					9963488441634771
+					9731878304560744
 					,[
 					[
-						1,
+						2,
+						["b_dbl",true]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
 						[
-							2,
-							"playSound"
+							0,
+							0
 						]
 					]
 ,					[
-						13,
-													[
-								7,
-								[
-									1,
-									10.1
-								]
-							]
-,
-							[
-								7,
-								[
-									1,
-									10.5
-								]
-							]
-,
-							[
-								7,
-								[
-									0,
-									0
-								]
-							]
+						1,
+						[
+							2,
+							"s"
+						]
 					]
 					]
 				]
@@ -26558,43 +26503,32 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					0,
-					cr.plugins_.Function.prototype.acts.CallFunction,
+					1,
+					cr.plugins_.Audio.prototype.acts.Play,
 					null,
-					2993771177954944
+					2528342433358901
 					,[
 					[
-						1,
+						2,
+						["b_sca",true]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
 						[
-							2,
-							"playSound"
+							0,
+							0
 						]
 					]
 ,					[
-						13,
-													[
-								7,
-								[
-									1,
-									1.7
-								]
-							]
-,
-							[
-								7,
-								[
-									1,
-									1.75
-								]
-							]
-,
-							[
-								7,
-								[
-									0,
-									0
-								]
-							]
+						1,
+						[
+							2,
+							"s"
+						]
 					]
 					]
 				]
@@ -26719,43 +26653,32 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					0,
-					cr.plugins_.Function.prototype.acts.CallFunction,
+					1,
+					cr.plugins_.Audio.prototype.acts.Play,
 					null,
-					558224716765135
+					6305688928200168
 					,[
 					[
-						1,
+						2,
+						["b_sca",true]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
 						[
-							2,
-							"playSound"
+							0,
+							0
 						]
 					]
 ,					[
-						13,
-													[
-								7,
-								[
-									1,
-									1.7
-								]
-							]
-,
-							[
-								7,
-								[
-									1,
-									1.75
-								]
-							]
-,
-							[
-								7,
-								[
-									0,
-									0
-								]
-							]
+						1,
+						[
+							2,
+							"s"
+						]
 					]
 					]
 				]
@@ -27569,43 +27492,32 @@ false,false,3997661614259204
 					],
 					[
 					[
-						0,
-						cr.plugins_.Function.prototype.acts.CallFunction,
+						1,
+						cr.plugins_.Audio.prototype.acts.Play,
 						null,
-						4435870665022656
+						2563493092099274
 						,[
 						[
-							1,
+							2,
+							["b_int",true]
+						]
+,						[
+							3,
+							0
+						]
+,						[
+							0,
 							[
-								2,
-								"playSound"
+								0,
+								0
 							]
 						]
 ,						[
-							13,
-															[
-									7,
-									[
-										1,
-										14.95
-									]
-								]
-,
-								[
-									7,
-									[
-										0,
-										16
-									]
-								]
-,
-								[
-									7,
-									[
-										0,
-										0
-									]
-								]
+							1,
+							[
+								2,
+								"s"
+							]
 						]
 						]
 					]
@@ -27843,43 +27755,32 @@ false,false,3997661614259204
 					],
 					[
 					[
-						0,
-						cr.plugins_.Function.prototype.acts.CallFunction,
+						1,
+						cr.plugins_.Audio.prototype.acts.Play,
 						null,
-						8925384783216404
+						3683149668882492
 						,[
 						[
-							1,
+							2,
+							["b_spl",true]
+						]
+,						[
+							3,
+							0
+						]
+,						[
+							0,
 							[
-								2,
-								"playSound"
+								0,
+								0
 							]
 						]
 ,						[
-							13,
-															[
-									7,
-									[
-										1,
-										26.2
-									]
-								]
-,
-								[
-									7,
-									[
-										1,
-										26.9
-									]
-								]
-,
-								[
-									7,
-									[
-										0,
-										0
-									]
-								]
+							1,
+							[
+								2,
+								"s"
+							]
 						]
 						]
 					]
@@ -28531,6 +28432,36 @@ false,false,3997661614259204
 					],
 					[
 					[
+						1,
+						cr.plugins_.Audio.prototype.acts.Play,
+						null,
+						7339794549425097
+						,[
+						[
+							2,
+							["b_dbl",true]
+						]
+,						[
+							3,
+							0
+						]
+,						[
+							0,
+							[
+								0,
+								0
+							]
+						]
+,						[
+							1,
+							[
+								2,
+								"s"
+							]
+						]
+						]
+					]
+,					[
 						-1,
 						cr.system_object.prototype.acts.SetVar,
 						null,
@@ -28876,43 +28807,32 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								0,
-								cr.plugins_.Function.prototype.acts.CallFunction,
+								1,
+								cr.plugins_.Audio.prototype.acts.Play,
 								null,
-								4651754689837281
+								4853574539876432
 								,[
 								[
-									1,
+									2,
+									["b_bj",true]
+								]
+,								[
+									3,
+									0
+								]
+,								[
+									0,
 									[
-										2,
-										"playSound"
+										0,
+										0
 									]
 								]
 ,								[
-									13,
-																			[
-											7,
-											[
-												1,
-												3.775
-											]
-										]
-,
-										[
-											7,
-											[
-												1,
-												4.7
-											]
-										]
-,
-										[
-											7,
-											[
-												0,
-												0
-											]
-										]
+									1,
+									[
+										2,
+										"s"
+									]
 								]
 								]
 							]
@@ -28990,43 +28910,32 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								0,
-								cr.plugins_.Function.prototype.acts.CallFunction,
+								1,
+								cr.plugins_.Audio.prototype.acts.Play,
 								null,
-								928622774118288
+								8381973926589857
 								,[
 								[
-									1,
+									2,
+									["b_pus",true]
+								]
+,								[
+									3,
+									0
+								]
+,								[
+									0,
 									[
-										2,
-										"playSound"
+										0,
+										0
 									]
 								]
 ,								[
-									13,
-																			[
-											7,
-											[
-												0,
-												24
-											]
-										]
-,
-										[
-											7,
-											[
-												1,
-												24.5
-											]
-										]
-,
-										[
-											7,
-											[
-												0,
-												0
-											]
-										]
+									1,
+									[
+										2,
+										"s"
+									]
 								]
 								]
 							]
@@ -29111,43 +29020,32 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								0,
-								cr.plugins_.Function.prototype.acts.CallFunction,
+								1,
+								cr.plugins_.Audio.prototype.acts.Play,
 								null,
-								4500534117634533
+								8351031680192518
 								,[
 								[
-									1,
+									2,
+									["b_win",true]
+								]
+,								[
+									3,
+									0
+								]
+,								[
+									0,
 									[
-										2,
-										"playSound"
+										0,
+										0
 									]
 								]
 ,								[
-									13,
-																			[
-											7,
-											[
-												1,
-												17.98
-											]
-										]
-,
-										[
-											7,
-											[
-												1,
-												18.9
-											]
-										]
-,
-										[
-											7,
-											[
-												0,
-												0
-											]
-										]
+									1,
+									[
+										2,
+										"s"
+									]
 								]
 								]
 							]
@@ -29232,43 +29130,32 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								0,
-								cr.plugins_.Function.prototype.acts.CallFunction,
+								1,
+								cr.plugins_.Audio.prototype.acts.Play,
 								null,
-								2643586636557151
+								6629773341611759
 								,[
 								[
-									1,
+									2,
+									["b_wis",true]
+								]
+,								[
+									3,
+									0
+								]
+,								[
+									0,
 									[
-										2,
-										"playSound"
+										0,
+										0
 									]
 								]
 ,								[
-									13,
-																			[
-											7,
-											[
-												1,
-												20.8
-											]
-										]
-,
-										[
-											7,
-											[
-												1,
-												22.2
-											]
-										]
-,
-										[
-											7,
-											[
-												0,
-												0
-											]
-										]
+									1,
+									[
+										2,
+										"s"
+									]
 								]
 								]
 							]
@@ -29395,43 +29282,32 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								0,
-								cr.plugins_.Function.prototype.acts.CallFunction,
+								1,
+								cr.plugins_.Audio.prototype.acts.Play,
 								null,
-								2320637835286606
+								8894472612241707
 								,[
 								[
-									1,
+									2,
+									["b_bj",true]
+								]
+,								[
+									3,
+									0
+								]
+,								[
+									0,
 									[
-										2,
-										"playSound"
+										0,
+										0
 									]
 								]
 ,								[
-									13,
-																			[
-											7,
-											[
-												1,
-												3.775
-											]
-										]
-,
-										[
-											7,
-											[
-												1,
-												4.7
-											]
-										]
-,
-										[
-											7,
-											[
-												0,
-												0
-											]
-										]
+									1,
+									[
+										2,
+										"s"
+									]
 								]
 								]
 							]
@@ -29509,43 +29385,32 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								0,
-								cr.plugins_.Function.prototype.acts.CallFunction,
+								1,
+								cr.plugins_.Audio.prototype.acts.Play,
 								null,
-								8663434161547703
+								8011986218374604
 								,[
 								[
-									1,
+									2,
+									["b_pus",true]
+								]
+,								[
+									3,
+									0
+								]
+,								[
+									0,
 									[
-										2,
-										"playSound"
+										0,
+										0
 									]
 								]
 ,								[
-									13,
-																			[
-											7,
-											[
-												0,
-												24
-											]
-										]
-,
-										[
-											7,
-											[
-												1,
-												24.5
-											]
-										]
-,
-										[
-											7,
-											[
-												0,
-												0
-											]
-										]
+									1,
+									[
+										2,
+										"s"
+									]
 								]
 								]
 							]
@@ -29630,43 +29495,32 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								0,
-								cr.plugins_.Function.prototype.acts.CallFunction,
+								1,
+								cr.plugins_.Audio.prototype.acts.Play,
 								null,
-								1988176094324194
+								1410906309911027
 								,[
 								[
-									1,
+									2,
+									["b_win",true]
+								]
+,								[
+									3,
+									0
+								]
+,								[
+									0,
 									[
-										2,
-										"playSound"
+										0,
+										0
 									]
 								]
 ,								[
-									13,
-																			[
-											7,
-											[
-												1,
-												17.98
-											]
-										]
-,
-										[
-											7,
-											[
-												1,
-												18.9
-											]
-										]
-,
-										[
-											7,
-											[
-												0,
-												0
-											]
-										]
+									1,
+									[
+										2,
+										"s"
+									]
 								]
 								]
 							]
@@ -29751,43 +29605,32 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								0,
-								cr.plugins_.Function.prototype.acts.CallFunction,
+								1,
+								cr.plugins_.Audio.prototype.acts.Play,
 								null,
-								8357819434798463
+								9309425232994559
 								,[
 								[
-									1,
+									2,
+									["b_wis",true]
+								]
+,								[
+									3,
+									0
+								]
+,								[
+									0,
 									[
-										2,
-										"playSound"
+										0,
+										0
 									]
 								]
 ,								[
-									13,
-																			[
-											7,
-											[
-												1,
-												20.8
-											]
-										]
-,
-										[
-											7,
-											[
-												1,
-												22.2
-											]
-										]
-,
-										[
-											7,
-											[
-												0,
-												0
-											]
-										]
+									1,
+									[
+										2,
+										"s"
+									]
 								]
 								]
 							]
@@ -35060,43 +34903,32 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					0,
-					cr.plugins_.Function.prototype.acts.CallFunction,
+					1,
+					cr.plugins_.Audio.prototype.acts.Play,
 					null,
-					4376310323902269
+					420060705704876
 					,[
 					[
-						1,
+						2,
+						["b_sca",true]
+					]
+,					[
+						3,
+						0
+					]
+,					[
+						0,
 						[
-							2,
-							"playSound"
+							0,
+							0
 						]
 					]
 ,					[
-						13,
-													[
-								7,
-								[
-									1,
-									6.24
-								]
-							]
-,
-							[
-								7,
-								[
-									1,
-									6.56
-								]
-							]
-,
-							[
-								7,
-								[
-									0,
-									0
-								]
-							]
+						1,
+						[
+							2,
+							"s"
+						]
 					]
 					]
 				]
@@ -38339,7 +38171,7 @@ false,false,3997661614259204
 	true,
 	true,
 	true,
-	"1.2.3.4",
+	"1.2.3.6",
 	1,
 	false,
 	0,
