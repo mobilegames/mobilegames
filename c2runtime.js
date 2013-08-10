@@ -20659,7 +20659,7 @@ cr.getProjectModel = function() { return [
 			0,
 			[
 			[
-				[58.2, 116.8, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[62.2, 122.4, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				7,
 				7,
 				[
@@ -20689,7 +20689,7 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[86.7291, 29.1817, 0, 146.658, 34.7634, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[93.1291, 29.1817, 0, 146.658, 34.7634, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				5,
 				3,
 				[
@@ -36700,370 +36700,6 @@ false,false,3997661614259204
 						0,
 						null,
 						false,
-						1366184319052826,
-						[
-						[
-							-1,
-							cr.system_object.prototype.cnds.CompareVar,
-							null,
-							0,
-							false,
-							false,
-							false,
-							2051085357467284
-							,[
-							[
-								11,
-								"scr_mode"
-							]
-,							[
-								8,
-								0
-							]
-,							[
-								7,
-								[
-									0,
-									2
-								]
-							]
-							]
-						]
-						],
-						[
-						]
-						,[
-						[
-							0,
-							null,
-							false,
-							7619032728559793,
-							[
-							[
-								-1,
-								cr.system_object.prototype.cnds.CompareVar,
-								null,
-								0,
-								false,
-								false,
-								false,
-								9477381352429468
-								,[
-								[
-									11,
-									"status"
-								]
-,								[
-									8,
-									0
-								]
-,								[
-									7,
-									[
-										0,
-										9
-									]
-								]
-								]
-							]
-							],
-							[
-							[
-								-1,
-								cr.system_object.prototype.acts.SetVar,
-								null,
-								4195571963773224
-								,[
-								[
-									11,
-									"tmp_status"
-								]
-,								[
-									7,
-									[
-										19,
-										cr.system_object.prototype.exps.tokenat
-										,[
-[
-											23,
-											"LastData"
-										]
-,[
-											0,
-											6
-										]
-,[
-											2,
-											"~"
-										]
-										]
-									]
-								]
-								]
-							]
-							]
-						]
-,						[
-							0,
-							null,
-							false,
-							6331115108269614,
-							[
-							[
-								-1,
-								cr.system_object.prototype.cnds.CompareVar,
-								null,
-								0,
-								false,
-								false,
-								false,
-								4309923292922603
-								,[
-								[
-									11,
-									"status"
-								]
-,								[
-									8,
-									1
-								]
-,								[
-									7,
-									[
-										0,
-										1
-									]
-								]
-								]
-							]
-							],
-							[
-							[
-								-1,
-								cr.system_object.prototype.acts.SetVar,
-								null,
-								3447766708617229
-								,[
-								[
-									11,
-									"enable"
-								]
-,								[
-									7,
-									[
-										0,
-										0
-									]
-								]
-								]
-							]
-,							[
-								40,
-								cr.plugins_.Rex_Container.prototype.acts.ContainerDestroy,
-								null,
-								6133097582566868
-							]
-,							[
-								-1,
-								cr.system_object.prototype.acts.CreateObject,
-								null,
-								6169434781972838
-								,[
-								[
-									4,
-									40
-								]
-,								[
-									5,
-									[
-										0,
-										3
-									]
-								]
-,								[
-									0,
-									[
-										0,
-										0
-									]
-								]
-,								[
-									0,
-									[
-										0,
-										0
-									]
-								]
-								]
-							]
-							]
-						]
-,						[
-							0,
-							null,
-							false,
-							7876119025749304,
-							[
-							[
-								-1,
-								cr.system_object.prototype.cnds.CompareVar,
-								null,
-								0,
-								false,
-								false,
-								false,
-								760093133101295
-								,[
-								[
-									11,
-									"status"
-								]
-,								[
-									8,
-									0
-								]
-,								[
-									7,
-									[
-										0,
-										1
-									]
-								]
-								]
-							]
-							],
-							[
-							[
-								36,
-								cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
-								null,
-								196929242125652
-								,[
-								[
-									4,
-									32
-								]
-,								[
-									0,
-									[
-										20,
-										29,
-										cr.plugins_.Arr.prototype.exps.At,
-										false,
-										null
-										,[
-[
-											0,
-											2
-										]
-										]
-									]
-								]
-,								[
-									3,
-									1
-								]
-								]
-							]
-,							[
-								32,
-								cr.plugins_.Text.prototype.acts.SetText,
-								null,
-								1911590024986585
-								,[
-								[
-									7,
-									[
-										2,
-										""
-									]
-								]
-								]
-							]
-,							[
-								16,
-								cr.plugins_.Sprite.prototype.acts.SetAnim,
-								null,
-								1363741188003139
-								,[
-								[
-									1,
-									[
-										2,
-										"s1"
-									]
-								]
-,								[
-									3,
-									1
-								]
-								]
-							]
-,							[
-								17,
-								cr.plugins_.Sprite.prototype.acts.SetAnim,
-								null,
-								9652496868263196
-								,[
-								[
-									1,
-									[
-										2,
-										"s1"
-									]
-								]
-,								[
-									3,
-									1
-								]
-								]
-							]
-,							[
-								15,
-								cr.plugins_.Sprite.prototype.acts.SetAnim,
-								null,
-								6768332604495381
-								,[
-								[
-									1,
-									[
-										2,
-										"s1"
-									]
-								]
-,								[
-									3,
-									1
-								]
-								]
-							]
-,							[
-								14,
-								cr.plugins_.Sprite.prototype.acts.SetAnim,
-								null,
-								9231856323783156
-								,[
-								[
-									1,
-									[
-										2,
-										"s1"
-									]
-								]
-,								[
-									3,
-									1
-								]
-								]
-							]
-							]
-						]
-						]
-					]
-,					[
-						0,
-						null,
-						false,
 						2797463667635787,
 						[
 						[
@@ -37096,14 +36732,41 @@ false,false,3997661614259204
 						],
 						[
 						[
-							44,
-							cr.plugins_.Sprite.prototype.acts.SetVisible,
+							40,
+							cr.plugins_.Rex_Container.prototype.acts.ContainerDestroy,
 							null,
-							6159539906143784
+							8944414977881624
+						]
+,						[
+							-1,
+							cr.system_object.prototype.acts.CreateObject,
+							null,
+							3712951933303645
 							,[
 							[
-								3,
-								0
+								4,
+								40
+							]
+,							[
+								5,
+								[
+									0,
+									3
+								]
+							]
+,							[
+								0,
+								[
+									0,
+									0
+								]
+							]
+,							[
+								0,
+								[
+									0,
+									0
+								]
 							]
 							]
 						]
@@ -38171,7 +37834,7 @@ false,false,3997661614259204
 	true,
 	true,
 	true,
-	"1.2.3.6",
+	"1.2.3.7",
 	1,
 	false,
 	0,
