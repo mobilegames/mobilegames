@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.mobilegame.myapp" version="1.3.1.5">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.mobile.games" version="1.6.6.0">
 
-	<name>Lobby</name>
-	<description>Lobby</description>
-	<author>S. Korenko</author>
+	<name>Casino Lobby</name>
+	<description>Modile Casino</description>
+	<author>Sergey Stupakov</author>
 
 	<gap:platforms>
 		<gap:platform name="ios" />
