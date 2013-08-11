@@ -17511,6 +17511,274 @@ cr.plugins_.Text = function(runtime)
 }());
 ;
 ;
+cr.plugins_.TextBox = function(runtime)
+{
+	this.runtime = runtime;
+};
+(function ()
+{
+	var pluginProto = cr.plugins_.TextBox.prototype;
+	pluginProto.Type = function(plugin)
+	{
+		this.plugin = plugin;
+		this.runtime = plugin.runtime;
+	};
+	var typeProto = pluginProto.Type.prototype;
+	typeProto.onCreate = function()
+	{
+	};
+	pluginProto.Instance = function(type)
+	{
+		this.type = type;
+		this.runtime = type.runtime;
+	};
+	var instanceProto = pluginProto.Instance.prototype;
+	var elemTypes = ["text", "password", "email", "number", "tel", "url"];
+	if (navigator.userAgent.indexOf("MSIE 9") > -1)
+	{
+		elemTypes[2] = "text";
+		elemTypes[3] = "text";
+		elemTypes[4] = "text";
+		elemTypes[5] = "text";
+	}
+	instanceProto.onCreate = function()
+	{
+		if (this.runtime.isDomFree)
+		{
+			cr.logexport("[Construct 2] Textbox plugin not supported on this platform - the object will not be created");
+			return;
+		}
+		if (this.properties[7] === 6)	// textarea
+		{
+			this.elem = document.createElement("textarea");
+			jQuery(this.elem).css("resize", "none");
+		}
+		else
+		{
+			this.elem = document.createElement("input");
+			this.elem.type = elemTypes[this.properties[7]];
+		}
+		this.elem.id = this.properties[9];
+		jQuery(this.elem).appendTo(this.runtime.canvasdiv ? this.runtime.canvasdiv : "body");
+		this.elem["autocomplete"] = "off";
+		this.elem.value = this.properties[0];
+		this.elem["placeholder"] = this.properties[1];
+		this.elem.title = this.properties[2];
+		this.elem.disabled = (this.properties[4] === 0);
+		this.elem["readOnly"] = (this.properties[5] === 1);
+		this.elem["spellcheck"] = (this.properties[6] === 1);
+		this.autoFontSize = (this.properties[8] !== 0);
+		if (this.properties[3] === 0)
+		{
+			jQuery(this.elem).hide();
+			this.visible = false;
+		}
+		var onchangetrigger = (function (self) {
+			return function() {
+				self.runtime.trigger(cr.plugins_.TextBox.prototype.cnds.OnTextChanged, self);
+			};
+		})(this);
+		this.elem["oninput"] = onchangetrigger;
+		if (navigator.userAgent.indexOf("MSIE") !== -1)
+			this.elem["oncut"] = onchangetrigger;
+		this.elem.onclick = (function (self) {
+			return function(e) {
+				e.stopPropagation();
+				self.runtime.trigger(cr.plugins_.TextBox.prototype.cnds.OnClicked, self);
+			};
+		})(this);
+		this.elem.ondblclick = (function (self) {
+			return function(e) {
+				e.stopPropagation();
+				self.runtime.trigger(cr.plugins_.TextBox.prototype.cnds.OnDoubleClicked, self);
+			};
+		})(this);
+		this.elem.addEventListener("touchstart", function (e) {
+			e.stopPropagation();
+		}, false);
+		this.elem.addEventListener("touchmove", function (e) {
+			e.stopPropagation();
+		}, false);
+		this.elem.addEventListener("touchend", function (e) {
+			e.stopPropagation();
+		}, false);
+		jQuery(this.elem).mousedown(function (e) {
+			e.stopPropagation();
+		});
+		jQuery(this.elem).mouseup(function (e) {
+			e.stopPropagation();
+		});
+		jQuery(this.elem).keydown(function (e) {
+			if (e.which !== 13 && e.which != 27)	// allow enter and escape
+				e.stopPropagation();
+		});
+		jQuery(this.elem).keyup(function (e) {
+			if (e.which !== 13 && e.which != 27)	// allow enter and escape
+				e.stopPropagation();
+		});
+		this.updatePosition();
+		this.runtime.tickMe(this);
+	};
+	instanceProto.saveToJSON = function ()
+	{
+		return {
+			"text": this.elem.value,
+			"placeholder": this.elem.placeholder,
+			"tooltip": this.elem.title,
+			"disabled": !!this.elem.disabled,
+			"readonly": !!this.elem.readOnly,
+			"spellcheck": !!this.elem["spellcheck"]
+		};
+	};
+	instanceProto.loadFromJSON = function (o)
+	{
+		this.elem.value = o["text"];
+		this.elem.placeholder = o["placeholder"];
+		this.elem.title = o["tooltip"];
+		this.elem.disabled = o["disabled"];
+		this.elem.readOnly = o["readonly"];
+		this.elem["spellcheck"] = o["spellcheck"];
+	};
+	instanceProto.onDestroy = function ()
+	{
+		if (this.runtime.isDomFree)
+				return;
+		jQuery(this.elem).remove();
+		this.elem = null;
+	};
+	instanceProto.tick = function ()
+	{
+		this.updatePosition();
+	};
+	instanceProto.updatePosition = function ()
+	{
+		if (this.runtime.isDomFree)
+			return;
+		var left = this.layer.layerToCanvas(this.x, this.y, true);
+		var top = this.layer.layerToCanvas(this.x, this.y, false);
+		var right = this.layer.layerToCanvas(this.x + this.width, this.y + this.height, true);
+		var bottom = this.layer.layerToCanvas(this.x + this.width, this.y + this.height, false);
+		if (!this.visible || !this.layer.visible || right <= 0 || bottom <= 0 || left >= this.runtime.width || top >= this.runtime.height)
+		{
+			jQuery(this.elem).hide();
+			return;
+		}
+		if (left < 1)
+			left = 1;
+		if (top < 1)
+			top = 1;
+		if (right >= this.runtime.width)
+			right = this.runtime.width - 1;
+		if (bottom >= this.runtime.height)
+			bottom = this.runtime.height - 1;
+		jQuery(this.elem).show();
+		var offx = Math.round(left) + jQuery(this.runtime.canvas).offset().left;
+		var offy = Math.round(top) + jQuery(this.runtime.canvas).offset().top;
+		jQuery(this.elem).offset({left: offx, top: offy});
+		jQuery(this.elem).width(Math.round(right - left));
+		jQuery(this.elem).height(Math.round(bottom - top));
+		if (this.autoFontSize)
+			jQuery(this.elem).css("font-size", (this.layer.getScale() - 0.2) + "em");
+	};
+	instanceProto.draw = function(ctx)
+	{
+	};
+	instanceProto.drawGL = function(glw)
+	{
+	};
+	function Cnds() {};
+	Cnds.prototype.CompareText = function (text, case_)
+	{
+		if (this.runtime.isDomFree)
+			return false;
+		if (case_ === 0)	// insensitive
+			return this.elem.value.toLowerCase() === text.toLowerCase();
+		else
+			return this.elem.value === text;
+	};
+	Cnds.prototype.OnTextChanged = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnClicked = function ()
+	{
+		return true;
+	};
+	Cnds.prototype.OnDoubleClicked = function ()
+	{
+		return true;
+	};
+	pluginProto.cnds = new Cnds();
+	function Acts() {};
+	Acts.prototype.SetText = function (text)
+	{
+		if (this.runtime.isDomFree)
+			return;
+		this.elem.value = text;
+	};
+	Acts.prototype.SetPlaceholder = function (text)
+	{
+		if (this.runtime.isDomFree)
+			return;
+		this.elem.placeholder = text;
+	};
+	Acts.prototype.SetTooltip = function (text)
+	{
+		if (this.runtime.isDomFree)
+			return;
+		this.elem.title = text;
+	};
+	Acts.prototype.SetVisible = function (vis)
+	{
+		if (this.runtime.isDomFree)
+			return;
+		this.visible = (vis !== 0);
+	};
+	Acts.prototype.SetEnabled = function (en)
+	{
+		if (this.runtime.isDomFree)
+			return;
+		this.elem.disabled = (en === 0);
+	};
+	Acts.prototype.SetReadOnly = function (ro)
+	{
+		if (this.runtime.isDomFree)
+			return;
+		this.elem.readOnly = (ro === 0);
+	};
+	Acts.prototype.SetFocus = function ()
+	{
+		if (this.runtime.isDomFree)
+			return;
+		this.elem.focus();
+	};
+	Acts.prototype.SetBlur = function ()
+	{
+		if (this.runtime.isDomFree)
+			return;
+		this.elem.blur();
+	};
+	Acts.prototype.SetCSSStyle = function (p, v)
+	{
+		if (this.runtime.isDomFree)
+			return;
+		jQuery(this.elem).css(p, v);
+	};
+	pluginProto.acts = new Acts();
+	function Exps() {};
+	Exps.prototype.Text = function (ret)
+	{
+		if (this.runtime.isDomFree)
+		{
+			ret.set_string("");
+			return;
+		}
+		ret.set_string(this.elem.value);
+	};
+	pluginProto.exps = new Exps();
+}());
+;
+;
 cr.plugins_.rex_TouchWrap = function(runtime)
 {
 	this.runtime = runtime;
@@ -19885,6 +20153,18 @@ cr.getProjectModel = function() { return [
 		false
 	]
 ,	[
+		cr.plugins_.TextBox,
+		false,
+		true,
+		true,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false
+	]
+,	[
 		cr.plugins_.AJAX,
 		true,
 		false,
@@ -20155,7 +20435,7 @@ cr.getProjectModel = function() { return [
 			false,
 			8445142753685777,
 			[
-				["images/europeanblackjackgold-sheet0.png", 23411, 0, 0, 100, 100, 1, 0.5, 0.5,[],[-0.31,-0.31,0,-0.45,0.31,-0.31,0.46,0,0.35,0.35,0,0.46,-0.35,0.35,-0.44,0],0]
+				["images/europeanblackjackgold-sheet0.png", 11548, 0, 0, 66, 67, 1, 0.5, 0.507463,[],[],0]
 			]
 			]
 		],
@@ -20213,35 +20493,6 @@ cr.getProjectModel = function() { return [
 			1,
 			0,
 			false,
-			36240071844509,
-			[
-				["images/bankingup2-sheet0.png", 3497, 0, 0, 80, 80, 1, 0.5, 0.5,[],[-0.2,-0.2,0,-0.3,0.1875,-0.1875,0.2625,0,0.2,0.2,0,0.2625,-0.175,0.175,-0.175,0],0]
-			]
-			]
-		],
-		[
-		],
-		false,
-		false,
-		8204099425683224,
-		[]
-	]
-,	[
-		"t10",
-		cr.plugins_.Sprite,
-		false,
-		[],
-		0,
-		0,
-		null,
-		[
-			[
-			"Default",
-			5,
-			false,
-			1,
-			0,
-			false,
 			7929460030301936,
 			[
 				["images/helpup-sheet0.png", 3968, 0, 0, 80, 80, 1, 0.5, 0.5,[],[-0.225,-0.225,0,-0.3125,0.2125,-0.2125,0.3,0,0.2125,0.2125,0,0.3125,-0.225,0.225,-0.325,0],0]
@@ -20256,7 +20507,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t11",
+		"t10",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20285,7 +20536,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t12",
+		"t11",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20319,7 +20570,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t13",
+		"t12",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20353,7 +20604,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t14",
+		"t13",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20399,7 +20650,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t15",
+		"t14",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20445,7 +20696,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t16",
+		"t15",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20491,7 +20742,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t17",
+		"t16",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20537,7 +20788,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t18",
+		"t17",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20583,7 +20834,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t19",
+		"t18",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20629,7 +20880,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t20",
+		"t19",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20699,7 +20950,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t21",
+		"t20",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20745,7 +20996,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t22",
+		"t21",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20791,7 +21042,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t23",
+		"t22",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20837,7 +21088,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t24",
+		"t23",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20883,7 +21134,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t25",
+		"t24",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -20912,7 +21163,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t26",
+		"t25",
 		cr.plugins_.Sprite,
 		false,
 		[2757865824220578],
@@ -20948,7 +21199,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t27",
+		"t26",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21167,7 +21418,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t28",
+		"t27",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -21183,7 +21434,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t29",
+		"t28",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -21199,7 +21450,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t30",
+		"t29",
 		cr.plugins_.Arr,
 		false,
 		[2637782884052952],
@@ -21215,7 +21466,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t31",
+		"t30",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -21231,7 +21482,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t32",
+		"t31",
 		cr.plugins_.Text,
 		false,
 		[],
@@ -21252,7 +21503,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t33",
+		"t32",
 		cr.plugins_.Text,
 		false,
 		[],
@@ -21273,7 +21524,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t34",
+		"t33",
 		cr.plugins_.AJAX,
 		false,
 		[],
@@ -21290,7 +21541,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t35",
+		"t34",
 		cr.plugins_.Mouse,
 		false,
 		[],
@@ -21307,7 +21558,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t36",
+		"t35",
 		cr.plugins_.Rex_SysExt,
 		false,
 		[],
@@ -21324,7 +21575,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t37",
+		"t36",
 		cr.plugins_.Text,
 		false,
 		[],
@@ -21350,36 +21601,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t38",
-		cr.plugins_.Sprite,
-		false,
-		[],
-		0,
-		0,
-		null,
-		[
-			[
-			"Default",
-			5,
-			false,
-			1,
-			0,
-			false,
-			7577965011626137,
-			[
-				["images/sprite3-sheet0.png", 872, 0, 0, 256, 256, 1, 0.5, 0.5,[],[],0]
-			]
-			]
-		],
-		[
-		],
-		false,
-		false,
-		2994047226832278,
-		[]
-	]
-,	[
-		"t39",
+		"t37",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21408,7 +21630,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t40",
+		"t38",
 		cr.plugins_.Rex_Container,
 		false,
 		[],
@@ -21424,7 +21646,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t41",
+		"t39",
 		cr.plugins_.Rex_Container,
 		false,
 		[],
@@ -21440,7 +21662,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t42",
+		"t40",
 		cr.plugins_.Rex_Container,
 		false,
 		[],
@@ -21456,7 +21678,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t43",
+		"t41",
 		cr.plugins_.Browser,
 		false,
 		[],
@@ -21473,7 +21695,7 @@ cr.getProjectModel = function() { return [
 		,[]
 	]
 ,	[
-		"t44",
+		"t42",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21490,9 +21712,9 @@ cr.getProjectModel = function() { return [
 			false,
 			9249783374635309,
 			[
-				["images/ball-sheet0.png", 873, 1, 1, 9, 240, 1, 0.555556, 0.504167,[],[-0.333334,-0.495834,0.222222,-0.495834,-0.111112,-0.4625],0],
+				["images/ball-sheet0.png", 873, 1, 1, 9, 240, 1, 0.555556, 0.504167,[],[-0.333334,-0.495833,0.222222,-0.495833,-0.111112,-0.4625],0],
 				["images/ball-sheet0.png", 873, 11, 1, 9, 240, 1, 0.555556, 0.5,[],[-0.222223,-0.4875,0.111111,-0.4875,-0.111112,-0.45],0],
-				["images/ball-sheet0.png", 873, 21, 1, 9, 240, 1, 0.555556, 0.5,[],[0,-0.479167,-0.111112,-0.479167,-0.111112,-0.479167,-0.111112,-0.441667],0],
+				["images/ball-sheet0.png", 873, 21, 1, 9, 240, 1, 0.555556, 0.5,[],[4.17233e-007,-0.479167,-0.111112,-0.479167,-0.111112,-0.479167,-0.111112,-0.441667],0],
 				["images/ball-sheet0.png", 873, 31, 1, 9, 240, 1, 0.555556, 0.5,[],[],0],
 				["images/ball-sheet0.png", 873, 41, 1, 9, 240, 1, 0.555556, 0.5,[],[],0],
 				["images/ball-sheet0.png", 873, 51, 1, 9, 240, 1, 0.555556, 0.5,[],[],0],
@@ -21544,7 +21766,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t45",
+		"t43",
 		cr.plugins_.Rex_Container,
 		false,
 		[],
@@ -21565,7 +21787,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t46",
+		"t44",
 		cr.plugins_.Sprite,
 		false,
 		[2266188437040345],
@@ -21604,7 +21826,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t47",
+		"t45",
 		cr.plugins_.Rex_Container,
 		false,
 		[],
@@ -21625,7 +21847,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t48",
+		"t46",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21676,28 +21898,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t49",
-		cr.plugins_.Text,
-		false,
-		[],
-		1,
-		0,
-		null,
-		null,
-		[
-		[
-			"Pin",
-			cr.behaviors.Pin,
-			42750926285802
-		]
-		],
-		false,
-		false,
-		2882914685433587,
-		[]
-	]
-,	[
-		"t50",
+		"t47",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21748,7 +21949,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t51",
+		"t48",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21799,7 +22000,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t52",
+		"t49",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21850,7 +22051,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t53",
+		"t50",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21901,7 +22102,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t54",
+		"t51",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21952,7 +22153,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t55",
+		"t52",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -21969,7 +22170,7 @@ cr.getProjectModel = function() { return [
 			false,
 			8380956632693803,
 			[
-				["images/r_bottom-sheet0.png", 15693, 0, 0, 320, 73, 1, 0.5, 0.506849,[],[-0.434375,-0.219178,0.434375,-0.219178,0.5,-0.013698,0.5,0.493151,-0.5,0.493151,-0.5,-0.013698],0]
+				["images/r_bottom-sheet0.png", 15693, 0, 0, 320, 73, 1, 0.5, 0.506849,[],[-0.434375,-0.219178,0.434375,-0.219178,0.5,-0.0136983,0.5,0.493151,-0.5,0.493151,-0.5,-0.0136983],0]
 			]
 			]
 		],
@@ -21991,7 +22192,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t56",
+		"t53",
 		cr.plugins_.Sprite,
 		false,
 		[991451664513328,7753913715328413,5788688796554875,2023925200264681,1804452289396588,9630964595960829],
@@ -22030,7 +22231,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t57",
+		"t54",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -22047,7 +22248,7 @@ cr.getProjectModel = function() { return [
 			false,
 			8954129472848854,
 			[
-				["images/r_wheel-sheet0.png", 87106, 0, 0, 195, 195, 1, 0.502564, 0.502564,[],[-0.353846,-0.353846,-0.00512803,-0.497436,0.348718,-0.353846,0.492308,-0.00512803,0.348718,0.348718,-0.00512803,0.492308,-0.353846,0.348718,-0.497436,-0.00512803],0]
+				["images/r_wheel-sheet0.png", 87106, 0, 0, 195, 195, 1, 0.502564, 0.502564,[],[-0.353846,-0.353846,-0.00512815,-0.497436,0.348718,-0.353846,0.492308,-0.00512815,0.348718,0.348718,-0.00512815,0.492308,-0.353846,0.348718,-0.497436,-0.00512815],0]
 			]
 			]
 		],
@@ -22069,7 +22270,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t58",
+		"t55",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -22103,7 +22304,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t59",
+		"t56",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -22185,7 +22386,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t60",
+		"t57",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -22272,7 +22473,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t61",
+		"t58",
 		cr.plugins_.Rex_Container,
 		false,
 		[],
@@ -22293,7 +22494,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t62",
+		"t59",
 		cr.plugins_.Rex_Container,
 		false,
 		[],
@@ -22314,7 +22515,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t63",
+		"t60",
 		cr.plugins_.Rex_Container,
 		false,
 		[],
@@ -22335,7 +22536,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t64",
+		"t61",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22351,7 +22552,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t65",
+		"t62",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22367,7 +22568,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t66",
+		"t63",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22383,7 +22584,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t67",
+		"t64",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -22400,7 +22601,7 @@ cr.getProjectModel = function() { return [
 			false,
 			3177946537884556,
 			[
-				["images/br-sheet0.png", 23411, 0, 0, 100, 100, 1, 0.5, 0.5,[],[-0.31,-0.31,0,-0.45,0.31,-0.31,0.46,0,0.35,0.35,0,0.46,-0.35,0.35,-0.44,0],0]
+				["images/br-sheet0.png", 13289, 0, 0, 66, 67, 1, 0.5, 0.507463,[],[-0.484848,-0.492537,0,-0.507463,0.484848,-0.492537,0.5,-0.0149254,0.484848,0.477612,-0.484848,0.477612],0]
 			]
 			]
 		],
@@ -22412,7 +22613,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t68",
+		"t65",
 		cr.plugins_.Dictionary,
 		false,
 		[],
@@ -22428,7 +22629,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t69",
+		"t66",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22444,7 +22645,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t70",
+		"t67",
 		cr.plugins_.Sprite,
 		false,
 		[],
@@ -22927,7 +23128,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t71",
+		"t68",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22943,7 +23144,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t72",
+		"t69",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22959,7 +23160,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t73",
+		"t70",
 		cr.plugins_.Arr,
 		false,
 		[],
@@ -22975,7 +23176,224 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
+		"t71",
+		cr.plugins_.Text,
+		false,
+		[],
+		1,
+		0,
+		null,
+		null,
+		[
+		[
+			"Pin",
+			cr.behaviors.Pin,
+			1064946538118642
+		]
+		],
+		false,
+		false,
+		9065429142429314,
+		[]
+	]
+,	[
+		"t72",
+		cr.plugins_.Sprite,
+		false,
+		[],
+		0,
+		0,
+		null,
+		[
+			[
+			"Default",
+			5,
+			false,
+			1,
+			0,
+			false,
+			9545566489641837,
+			[
+				["images/sprite3-sheet0.png", 628, 0, 0, 320, 70, 1, 0.5, 0.5,[],[],0]
+			]
+			]
+		],
+		[
+		],
+		false,
+		false,
+		5274472073723706,
+		[]
+	]
+,	[
+		"t73",
+		cr.plugins_.Sprite,
+		false,
+		[],
+		0,
+		0,
+		null,
+		[
+			[
+			"Default",
+			5,
+			false,
+			1,
+			0,
+			false,
+			3433111984052196,
+			[
+				["images/sprite4-sheet0.png", 628, 0, 0, 320, 70, 1, 0.5, 0.5,[],[],0]
+			]
+			]
+		],
+		[
+		],
+		false,
+		false,
+		7990748482853221,
+		[]
+	]
+,	[
 		"t74",
+		cr.plugins_.TextBox,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		8132828404940131,
+		[]
+	]
+,	[
+		"t75",
+		cr.plugins_.Text,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		2342021331869274,
+		[]
+	]
+,	[
+		"t76",
+		cr.plugins_.TextBox,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		3471856926817041,
+		[]
+	]
+,	[
+		"t77",
+		cr.plugins_.Sprite,
+		false,
+		[],
+		0,
+		0,
+		null,
+		[
+			[
+			"Default",
+			5,
+			false,
+			1,
+			0,
+			false,
+			7292605966498079,
+			[
+				["images/sprite13-sheet0.png", 222, 0, 0, 120, 40, 1, 0.5, 0.5,[],[],0]
+			]
+			]
+		],
+		[
+		],
+		false,
+		false,
+		2922222720431109,
+		[]
+	]
+,	[
+		"t78",
+		cr.plugins_.Sprite,
+		false,
+		[],
+		0,
+		0,
+		null,
+		[
+			[
+			"Default",
+			5,
+			false,
+			1,
+			0,
+			false,
+			8741187565301875,
+			[
+				["images/sprite12-sheet0.png", 222, 0, 0, 120, 40, 1, 0.5, 0.5,[],[],0]
+			]
+			]
+		],
+		[
+		],
+		false,
+		false,
+		4072015696852482,
+		[]
+	]
+,	[
+		"t79",
+		cr.plugins_.Rex_Container,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		8639245710746012,
+		[]
+	]
+,	[
+		"t80",
+		cr.plugins_.Text,
+		false,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		9329903450526739,
+		[]
+	]
+,	[
+		"t81",
 		cr.plugins_.Sprite,
 		true,
 		[],
@@ -22991,7 +23409,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t75",
+		"t82",
 		cr.plugins_.Sprite,
 		true,
 		[],
@@ -23007,7 +23425,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t76",
+		"t83",
 		cr.plugins_.Sprite,
 		true,
 		[],
@@ -23023,7 +23441,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t77",
+		"t84",
 		cr.plugins_.Text,
 		true,
 		[],
@@ -23039,7 +23457,7 @@ cr.getProjectModel = function() { return [
 		[]
 	]
 ,	[
-		"t78",
+		"t85",
 		cr.plugins_.Sprite,
 		true,
 		[],
@@ -23054,13 +23472,30 @@ cr.getProjectModel = function() { return [
 		7935551191765312,
 		[]
 	]
+,	[
+		"t86",
+		cr.plugins_.Sprite,
+		true,
+		[],
+		0,
+		0,
+		null,
+		null,
+		[
+		],
+		false,
+		false,
+		2253762816639071,
+		[]
+	]
 	],
 	[
-		[74,22,17,18,16,24,21,19,23,15,14,20]
-,		[75,48,51,50]
-,		[76,54,53,60]
-,		[77,33,37,32,49]
-,		[78,44,70,57]
+		[81,21,16,17,15,23,20,18,22,14,13,19]
+,		[82,46,48,47]
+,		[83,51,50,57]
+,		[84,32,36,31]
+,		[85,42,67,54]
+,		[86,64,7]
 	],
 	[
 	[
@@ -23087,7 +23522,7 @@ cr.getProjectModel = function() { return [
 			0,
 			[
 			[
-				[62.2, 122.4, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[54.2195, 115.2, 0, 66, 67, 0, 0, 1, 0.5, 0.507463, 0, 0, []],
 				7,
 				7,
 				[
@@ -23102,8 +23537,23 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[160.8, 30, 0, 324.8, 60, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				38,
+				[135.191, 115.486, 0, 66, 67, 0, 0, 1, 0.5, 0.507463, 0, 0, []],
+				64,
+				64,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[160, 35, 0, 320, 70, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				72,
 				1,
 				[
 				],
@@ -23117,7 +23567,22 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[93.1291, 29.1817, 0, 146.658, 34.7634, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[160, 444, 0, 320, 70, 0, 3.14159, 1, 0.5, 0.5, 0, 0, []],
+				73,
+				5,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[92.7867, 32.0457, 0, 155.452, 36.848, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				5,
 				3,
 				[
@@ -23132,9 +23597,9 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[160.8, 449.621, 0, 326.4, 60, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				38,
-				5,
+				[125.205, 444, 0, 40, 40, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				10,
+				10,
 				[
 				],
 				[
@@ -23147,7 +23612,173 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[126.403, 449.4, 0, 40, 40, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				[20, 160, 0, 176, 32, 0, 0, 1, 0, 0, 0, 0, []],
+				74,
+				43,
+				[
+				],
+				[
+				],
+				[
+					"",
+					"380671234567",
+					"",
+					1,
+					1,
+					0,
+					0,
+					4,
+					1,
+					"login"
+				]
+			]
+,			[
+				[192.122, 126.448, 0, 120, 30, 0, 0, 1, 0, 0, 0, 0, []],
+				75,
+				72,
+				[
+				],
+				[
+				],
+				[
+					"Phone number",
+					0,
+					"bold 12pt Arial Narrow",
+					"rgb(255,255,255)",
+					0,
+					2,
+					0,
+					0,
+					0
+				]
+			]
+,			[
+				[211.922, 159.247, 0, 87, 32, 0, 0, 1, 0, 0, 0, 0, []],
+				76,
+				74,
+				[
+				],
+				[
+				],
+				[
+					"",
+					"****",
+					"",
+					1,
+					1,
+					0,
+					0,
+					1,
+					1,
+					"login"
+				]
+			]
+,			[
+				[86.0718, 228.047, 0, 130, 40, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				77,
+				75,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[25.0718, 212.047, 0, 120, 30, 0, 0, 1, 0, 0, 0, 0, []],
+				75,
+				76,
+				[
+				],
+				[
+				],
+				[
+					"Login",
+					0,
+					"bold 14pt Arial Narrow",
+					"rgb(255,255,255)",
+					1,
+					2,
+					0,
+					0,
+					0
+				]
+			]
+,			[
+				[234.891, 228.048, 0, 130, 40, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				78,
+				77,
+				[
+				],
+				[
+				],
+				[
+					0,
+					"Default",
+					0,
+					1
+				]
+			]
+,			[
+				[175.891, 212.048, 0, 120, 30, 0, 0, 1, 0, 0, 0, 0, []],
+				75,
+				78,
+				[
+				],
+				[
+				],
+				[
+					"Register",
+					0,
+					"bold 14pt Arial Narrow",
+					"rgb(255,255,255)",
+					1,
+					2,
+					0,
+					0,
+					0
+				]
+			]
+,			[
+				[384.572, 228.048, 0, 50, 50, 0, 0, 1, 0, 0, 0, 0, []],
+				79,
+				79,
+				[
+				],
+				[
+				],
+				[
+					0,
+					0,
+					""
+				]
+			]
+,			[
+				[120.347, 428.603, 0, 188, 30, 0, 0, 1, 0, 0, 0, 0, []],
+				80,
+				9,
+				[
+				],
+				[
+				],
+				[
+					"Demo Balance: $1000",
+					0,
+					"bold 11pt Arial Narrow",
+					"rgb(255,255,255)",
+					2,
+					2,
+					0,
+					0,
+					0
+				]
+			]
+,			[
+				[29.3718, 444, 0, 40, 40, 0, 0, 1, 0.5, 0.5, 0, 0, []],
 				9,
 				8,
 				[
@@ -23162,39 +23793,9 @@ cr.getProjectModel = function() { return [
 				]
 			]
 ,			[
-				[290.386, 449.4, 0, 40, 40, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				10,
-				9,
-				[
-				],
-				[
-				],
-				[
-					0,
-					"Default",
-					0,
-					1
-				]
-			]
-,			[
-				[208, 449.4, 0, 40, 40, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				11,
-				10,
-				[
-				],
-				[
-				],
-				[
-					0,
-					"Default",
-					0,
-					1
-				]
-			]
-,			[
-				[182.172, 121.886, 0, 100, 100, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				67,
-				64,
+				[77.7502, 444, 0, 40, 40, 0, 0, 1, 0.5, 0.5, 0, 0, []],
+				8,
+				73,
 				[
 				],
 				[
@@ -23213,7 +23814,7 @@ cr.getProjectModel = function() { return [
 		[
 			[
 				null,
-				68,
+				65,
 				65,
 				[
 				],
@@ -23224,14 +23825,14 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				null,
-				69,
+				66,
 				66,
 				[
 				],
 				[
 				],
 				[
-					10,
+					40,
 					1,
 					1
 				]
@@ -23264,7 +23865,7 @@ cr.getProjectModel = function() { return [
 			[
 			[
 				[160, 26, 0, 320, 50, 0, 0, 1, 0.5, 0.513889, 0, 0, []],
-				12,
+				11,
 				11,
 				[
 				],
@@ -23285,7 +23886,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[160, 435, 0, 320, 90, 0, 0, 1, 0.5, 0.507463, 0, 0, []],
-				13,
+				12,
 				12,
 				[
 				],
@@ -23306,7 +23907,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[129, 443, 0, 42, 50, 0, 0, 1, 0.511628, 0.509804, 0, 0, []],
-				15,
+				14,
 				13,
 				[
 				],
@@ -23327,7 +23928,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[27, 441, 0, 42, 50, 0, 0, 1, 0.488372, 0.490196, 0, 0, []],
-				14,
+				13,
 				14,
 				[
 				],
@@ -23348,7 +23949,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[77, 442, 0, 50, 50, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				20,
+				19,
 				15,
 				[
 				],
@@ -23369,7 +23970,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[207, 446, 0, 65, 65, 0, 0, 1, 0.511111, 0.511111, 0, 0, []],
-				16,
+				15,
 				16,
 				[
 				],
@@ -23390,7 +23991,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[280, 445, 0, 65, 65, 0, 0, 1, 0.511111, 0.511111, 0, 0, []],
-				17,
+				16,
 				17,
 				[
 				],
@@ -23411,7 +24012,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[567, 569, 0, 65, 65, 0, 0, 1, 0.511111, 0.511111, 0, 0, []],
-				18,
+				17,
 				18,
 				[
 				],
@@ -23432,7 +24033,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[659, 573, 0, 65, 65, 0, 0, 1, 0.511111, 0.511111, 0, 0, []],
-				19,
+				18,
 				19,
 				[
 				],
@@ -23453,7 +24054,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[52, 870, 0, 65, 65, 0, 0, 1, 0.511111, 0.511111, 0, 0, []],
-				22,
+				21,
 				20,
 				[
 				],
@@ -23474,7 +24075,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[429, 745, 0, 65, 65, 0, 0, 1, 0.511111, 0.511111, 0, 0, []],
-				21,
+				20,
 				21,
 				[
 				],
@@ -23495,7 +24096,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[192, 870, 0, 65, 65, 0, 0, 1, 0.511111, 0.511111, 0, 0, []],
-				23,
+				22,
 				22,
 				[
 				],
@@ -23516,7 +24117,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[122, 870, 0, 65, 65, 0, 0, 1, 0.511111, 0.511111, 0, 0, []],
-				24,
+				23,
 				23,
 				[
 				],
@@ -23537,7 +24138,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[159, 155, 0, 220.389, 98.934, 0, 0, 1, 0.5, 0.504065, 0, 0, []],
-				25,
+				24,
 				24,
 				[
 				],
@@ -23552,7 +24153,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[616, 304, 0, 56, 74, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				26,
+				25,
 				25,
 				[
 					""
@@ -23574,7 +24175,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[616, 404, 0, 56, 74, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				27,
+				26,
 				26,
 				[
 				],
@@ -23597,7 +24198,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[19, 23, 0, 129, 24, 0, 0, 1, 0, 0, 0, 0, []],
-				32,
+				31,
 				31,
 				[
 				],
@@ -23619,7 +24220,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[219, -32, 0, 43, 24, 0, 0, 1, 0, 0, 0, 0, []],
-				33,
+				32,
 				32,
 				[
 				],
@@ -23641,7 +24242,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[55, 431, 0, 43, 24, 0, 0, 1, 0, 0, 0, 0, []],
-				37,
+				36,
 				36,
 				[
 				],
@@ -23669,7 +24270,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[429, 263, 0, 16, 30.1176, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				39,
+				37,
 				37,
 				[
 				],
@@ -23684,7 +24285,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[481, 392.667, 0, 50, 50, 0, 0, 1, 0, 0, 0, 0, []],
-				42,
+				40,
 				39,
 				[
 				],
@@ -23698,7 +24299,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[482, 331.667, 0, 50, 50, 0, 0, 1, 0, 0, 0, 0, []],
-				40,
+				38,
 				40,
 				[
 				],
@@ -23712,7 +24313,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[423, 331.667, 0, 50, 50, 0, 0, 1, 0, 0, 0, 0, []],
-				41,
+				39,
 				41,
 				[
 				],
@@ -23731,7 +24332,7 @@ cr.getProjectModel = function() { return [
 		[
 			[
 				null,
-				28,
+				27,
 				27,
 				[
 				],
@@ -23745,7 +24346,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				null,
-				29,
+				28,
 				28,
 				[
 				],
@@ -23759,7 +24360,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				null,
-				30,
+				29,
 				29,
 				[
 					0
@@ -23774,7 +24375,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				null,
-				31,
+				30,
 				30,
 				[
 				],
@@ -23814,7 +24415,7 @@ cr.getProjectModel = function() { return [
 			[
 			[
 				[373, 637, 0, 320, 618, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				56,
+				53,
 				45,
 				[
 					0,
@@ -23841,7 +24442,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[479.871, 370.203, 0, 9, 240, 0, 0, 1, 0.555556, 0.504167, 0, 0, []],
-				44,
+				42,
 				42,
 				[
 				],
@@ -23864,7 +24465,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[160, 26, 0, 320, 50, 0, 0, 1, 0.5, 0.513889, 0, 0, []],
-				12,
+				11,
 				38,
 				[
 				],
@@ -23885,7 +24486,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[160, 443, 0, 320, 73, 0, 0, 1, 0.5, 0.506849, 0, 0, []],
-				55,
+				52,
 				44,
 				[
 				],
@@ -23909,7 +24510,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[179, 183, 0, 200, 200, 0, 0, 1, 0.502564, 0.502564, 0, 0, []],
-				57,
+				54,
 				46,
 				[
 				],
@@ -23932,7 +24533,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[160, 191, 0, 320, 280, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				58,
+				55,
 				47,
 				[
 				],
@@ -23949,7 +24550,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[403.078, 80.8854, 0, 30, 30, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				59,
+				56,
 				48,
 				[
 				],
@@ -23966,7 +24567,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[404.922, 137.115, 0, 49, 49, 0, 0, 1, 0.5, 0.5, 0, 0, []],
-				60,
+				57,
 				49,
 				[
 				],
@@ -23989,7 +24590,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[386, 248, 0, 30.6004, 31.1575, 0, 0, 1, 0, 0, 0, 0, []],
-				45,
+				43,
 				50,
 				[
 				],
@@ -24007,7 +24608,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[388, 177, 0, 30.6004, 30.6004, 0, 0, 1, 0, 0, 0, 0, []],
-				61,
+				58,
 				51,
 				[
 				],
@@ -24025,7 +24626,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[384, 285, 0, 30.6004, 30.6004, 0, 0, 1, 0, 0, 0, 0, []],
-				62,
+				59,
 				52,
 				[
 				],
@@ -24043,7 +24644,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[386, 213, 0, 30.6004, 30.6004, 0, 0, 1, 0, 0, 0, 0, []],
-				63,
+				60,
 				53,
 				[
 				],
@@ -24061,7 +24662,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[481, 94, 0, 50, 50, 0, 0, 1, 0.5, 0.52, 0, 0, []],
-				48,
+				46,
 				54,
 				[
 				],
@@ -24084,7 +24685,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[563, 149, 0, 50, 50, 0, 0, 1, 0.5, 0.52, 0, 0, []],
-				50,
+				47,
 				55,
 				[
 				],
@@ -24107,7 +24708,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[565, 90, 0, 50, 50, 0, 0, 1, 0.5, 0.52, 0, 0, []],
-				51,
+				48,
 				56,
 				[
 				],
@@ -24130,7 +24731,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[564, 265, 0, 50, 50, 0, 0, 1, 0.5, 0.52, 0, 0, []],
-				52,
+				49,
 				57,
 				[
 				],
@@ -24153,7 +24754,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[565, 327, 0, 50, 50, 0, 0, 1, 0.5, 0.52, 0, 0, []],
-				53,
+				50,
 				58,
 				[
 				],
@@ -24176,7 +24777,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[630, 90, 0, 50, 50, 0, 0, 1, 0.5, 0.52, 0, 0, []],
-				54,
+				51,
 				59,
 				[
 				],
@@ -24199,7 +24800,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[314, 27, 0, 62, 42, 0, 0, 1, 0.52, 0.52, 0, 0, []],
-				46,
+				44,
 				60,
 				[
 					0
@@ -24219,7 +24820,7 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				[415, 382, 0, 70.3577, 70.3577, 0, 0, 1, 0.509091, 0.509091, 0, 0, []],
-				70,
+				67,
 				67,
 				[
 				],
@@ -24238,6 +24839,28 @@ cr.getProjectModel = function() { return [
 					"Default",
 					0,
 					1
+				]
+			]
+,			[
+				[199, 22, 0, 28, 20, 0, 0, 1, 0, 0, 0, 0, []],
+				71,
+				71,
+				[
+				],
+				[
+				[
+				]
+				],
+				[
+					"0",
+					0,
+					"bold 10pt Arial",
+					"rgb(255,255,255)",
+					1,
+					0,
+					0,
+					0,
+					0
 				]
 			]
 			],
@@ -24301,21 +24924,21 @@ cr.getProjectModel = function() { return [
 		[
 			[
 				null,
-				64,
+				61,
 				61,
 				[
 				],
 				[
 				],
 				[
-					10,
+					40,
 					1,
 					1
 				]
 			]
 ,			[
 				null,
-				65,
+				62,
 				62,
 				[
 				],
@@ -24329,21 +24952,21 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				null,
-				66,
+				63,
 				63,
 				[
 				],
 				[
 				],
 				[
-					10,
+					37,
 					1,
 					1
 				]
 			]
 ,			[
 				null,
-				71,
+				68,
 				68,
 				[
 				],
@@ -24357,21 +24980,21 @@ cr.getProjectModel = function() { return [
 			]
 ,			[
 				null,
-				72,
+				69,
 				69,
 				[
 				],
 				[
 				],
 				[
-					10,
+					157,
 					1,
 					1
 				]
 			]
 ,			[
 				null,
-				73,
+				70,
 				70,
 				[
 				],
@@ -24395,7 +25018,7 @@ cr.getProjectModel = function() { return [
 			1,
 			"balance",
 			0,
-			1000,
+			10,
 false,false,5135891778854882
 		]
 ,		[
@@ -24444,20 +25067,100 @@ false,false,9729894407404076
 						,[
 [
 							0,
-							0
+							81
 						]
 ,[
 							0,
-							0
+							81
 						]
 ,[
 							0,
-							0
+							81
 						]
 						]
 					]
 				]
 				]
+			]
+,			[
+				76,
+				cr.plugins_.TextBox.prototype.acts.SetCSSStyle,
+				null,
+				5189752501421521
+				,[
+				[
+					1,
+					[
+						2,
+						"text-align"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"center"
+					]
+				]
+				]
+			]
+,			[
+				74,
+				cr.plugins_.TextBox.prototype.acts.SetCSSStyle,
+				null,
+				9369095179237994
+				,[
+				[
+					1,
+					[
+						2,
+						"padding-left"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"5px"
+					]
+				]
+				]
+			]
+,			[
+				75,
+				cr.plugins_.Text.prototype.acts.Destroy,
+				null,
+				3408678925529791
+			]
+,			[
+				78,
+				cr.plugins_.Sprite.prototype.acts.Destroy,
+				null,
+				2878892302992989
+			]
+,			[
+				77,
+				cr.plugins_.Sprite.prototype.acts.Destroy,
+				null,
+				72686692356234
+			]
+,			[
+				76,
+				cr.plugins_.TextBox.prototype.acts.Destroy,
+				null,
+				3517452832949883
+			]
+,			[
+				74,
+				cr.plugins_.TextBox.prototype.acts.Destroy,
+				null,
+				6238421953840975
+			]
+,			[
+				31,
+				cr.plugins_.Text.prototype.acts.Destroy,
+				null,
+				4385720476144583
 			]
 			]
 		]
@@ -24517,7 +25220,7 @@ false,false,9729894407404076
 				,[
 				[
 					4,
-					67
+					64
 				]
 				]
 			]
@@ -24532,6 +25235,954 @@ false,false,9729894407404076
 				[
 					6,
 					"Roulette"
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			4184256518756688,
+			[
+			[
+				2,
+				cr.plugins_.rex_TouchWrap.prototype.cnds.OnTouchObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				9785307244038462
+				,[
+				[
+					4,
+					10
+				]
+				]
+			]
+			],
+			[
+			[
+				86,
+				cr.plugins_.Sprite.prototype.acts.SetVisible,
+				null,
+				6043474065653313
+				,[
+				[
+					3,
+					0
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.CreateObject,
+				null,
+				9893443928336535
+				,[
+				[
+					4,
+					79
+				]
+,				[
+					5,
+					[
+						0,
+						0
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			8666893595514314,
+			[
+			[
+				79,
+				cr.plugins_.Rex_Container.prototype.cnds.OnCreated,
+				null,
+				1,
+				false,
+				false,
+				false,
+				5098334705543143
+			]
+			],
+			[
+			[
+				79,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				3214420650656451
+				,[
+				[
+					4,
+					74
+				]
+,				[
+					0,
+					[
+						0,
+						20
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						160
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				79,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				8430448503445492
+				,[
+				[
+					4,
+					76
+				]
+,				[
+					0,
+					[
+						0,
+						210
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						160
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				79,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				683645026989375
+				,[
+				[
+					4,
+					77
+				]
+,				[
+					0,
+					[
+						0,
+						86
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						230
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				79,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				4086869855872232
+				,[
+				[
+					4,
+					78
+				]
+,				[
+					0,
+					[
+						0,
+						235
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						230
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				79,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				9287937258319705
+				,[
+				[
+					4,
+					31
+				]
+,				[
+					0,
+					[
+						0,
+						24
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						219
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				31,
+				cr.plugins_.Text.prototype.acts.SetText,
+				null,
+				3119478540570036
+				,[
+				[
+					7,
+					[
+						2,
+						"Login"
+					]
+				]
+				]
+			]
+,			[
+				79,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				2003389656836379
+				,[
+				[
+					4,
+					31
+				]
+,				[
+					0,
+					[
+						0,
+						173
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						219
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				31,
+				cr.plugins_.Text.prototype.acts.SetText,
+				null,
+				5916038708424155
+				,[
+				[
+					7,
+					[
+						2,
+						"Register"
+					]
+				]
+				]
+			]
+,			[
+				79,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				5744011604786333
+				,[
+				[
+					4,
+					31
+				]
+,				[
+					0,
+					[
+						0,
+						160
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						135
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				31,
+				cr.plugins_.Text.prototype.acts.SetText,
+				null,
+				2839766531566783
+				,[
+				[
+					7,
+					[
+						2,
+						"PIN"
+					]
+				]
+				]
+			]
+,			[
+				79,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				8532117941723632
+				,[
+				[
+					4,
+					31
+				]
+,				[
+					0,
+					[
+						0,
+						14
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						135
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				31,
+				cr.plugins_.Text.prototype.acts.SetText,
+				null,
+				2553955769279221
+				,[
+				[
+					7,
+					[
+						2,
+						"Phone Number"
+					]
+				]
+				]
+			]
+,			[
+				76,
+				cr.plugins_.TextBox.prototype.acts.SetCSSStyle,
+				null,
+				1148222342879692
+				,[
+				[
+					1,
+					[
+						2,
+						"text-align"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"center"
+					]
+				]
+				]
+			]
+,			[
+				74,
+				cr.plugins_.TextBox.prototype.acts.SetCSSStyle,
+				null,
+				4855297751443567
+				,[
+				[
+					1,
+					[
+						2,
+						"padding-left"
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"5px"
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			6362441029445792,
+			[
+			[
+				2,
+				cr.plugins_.rex_TouchWrap.prototype.cnds.OnTouchObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				6366199561649677
+				,[
+				[
+					4,
+					77
+				]
+				]
+			]
+			],
+			[
+			[
+				33,
+				cr.plugins_.AJAX.prototype.acts.Request,
+				null,
+				3000208907256858
+				,[
+				[
+					1,
+					[
+						2,
+						"login"
+					]
+				]
+,				[
+					1,
+					[
+						10,
+						[
+							10,
+							[
+								10,
+								[
+									2,
+									"http://109.86.74.208/login.php?action=login&phone="
+								]
+								,[
+									20,
+									74,
+									cr.plugins_.TextBox.prototype.exps.Text,
+									true,
+									null
+								]
+							]
+							,[
+								2,
+								"&pin="
+							]
+						]
+						,[
+							20,
+							76,
+							cr.plugins_.TextBox.prototype.exps.Text,
+							true,
+							null
+						]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			9199466118408338,
+			[
+			[
+				2,
+				cr.plugins_.rex_TouchWrap.prototype.cnds.OnTouchObject,
+				null,
+				1,
+				false,
+				false,
+				false,
+				8739896320541941
+				,[
+				[
+					4,
+					78
+				]
+				]
+			]
+			],
+			[
+			[
+				33,
+				cr.plugins_.AJAX.prototype.acts.Request,
+				null,
+				462526754058777
+				,[
+				[
+					1,
+					[
+						2,
+						"reg"
+					]
+				]
+,				[
+					1,
+					[
+						10,
+						[
+							10,
+							[
+								10,
+								[
+									2,
+									"http://109.86.74.208/login.php?action=login&phone="
+								]
+								,[
+									20,
+									74,
+									cr.plugins_.TextBox.prototype.exps.Text,
+									true,
+									null
+								]
+							]
+							,[
+								2,
+								"&pin="
+							]
+						]
+						,[
+							20,
+							76,
+							cr.plugins_.TextBox.prototype.exps.Text,
+							true,
+							null
+						]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			2445085463519328,
+			[
+			[
+				33,
+				cr.plugins_.AJAX.prototype.cnds.OnComplete,
+				null,
+				1,
+				false,
+				false,
+				false,
+				3742526950661887
+				,[
+				[
+					1,
+					[
+						2,
+						"login"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				9064197754176509,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6412152221284167
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.tokenat
+							,[
+[
+								20,
+								33,
+								cr.plugins_.AJAX.prototype.exps.LastData,
+								true,
+								null
+							]
+,[
+								0,
+								0
+							]
+,[
+								2,
+								"~"
+							]
+							]
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							2,
+							"1"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					8649548890592947
+					,[
+					[
+						11,
+						"balance"
+					]
+,					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.tokenat
+							,[
+[
+								20,
+								33,
+								cr.plugins_.AJAX.prototype.exps.LastData,
+								true,
+								null
+							]
+,[
+								0,
+								1
+							]
+,[
+								2,
+								"~"
+							]
+							]
+						]
+					]
+					]
+				]
+,				[
+					80,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					6901562492031363
+					,[
+					[
+						7,
+						[
+							10,
+							[
+								2,
+								"Balance: $"
+							]
+							,[
+								23,
+								"balance"
+							]
+						]
+					]
+					]
+				]
+,				[
+					86,
+					cr.plugins_.Sprite.prototype.acts.SetVisible,
+					null,
+					9194174441871674
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					79,
+					cr.plugins_.Rex_Container.prototype.acts.ContainerDestroy,
+					null,
+					3336653660214418
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
+				1773599090236311,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Else,
+					null,
+					0,
+					false,
+					false,
+					false,
+					3366106722151308
+				]
+				],
+				[
+				[
+					41,
+					cr.plugins_.Browser.prototype.acts.Alert,
+					null,
+					7894347142745406
+					,[
+					[
+						7,
+						[
+							2,
+							"Login or password incorrect"
+						]
+					]
+					]
+				]
+				]
+			]
+			]
+		]
+,		[
+			0,
+			null,
+			false,
+			4210825016372347,
+			[
+			[
+				33,
+				cr.plugins_.AJAX.prototype.cnds.OnComplete,
+				null,
+				1,
+				false,
+				false,
+				false,
+				1575608402929868
+				,[
+				[
+					1,
+					[
+						2,
+						"reg"
+					]
+				]
+				]
+			]
+			],
+			[
+			]
+			,[
+			[
+				0,
+				null,
+				false,
+				9714756286967469,
+				[
+				[
+					-1,
+					cr.system_object.prototype.cnds.Compare,
+					null,
+					0,
+					false,
+					false,
+					false,
+					6117463723518875
+					,[
+					[
+						7,
+						[
+							19,
+							cr.system_object.prototype.exps.tokenat
+							,[
+[
+								20,
+								33,
+								cr.plugins_.AJAX.prototype.exps.LastData,
+								true,
+								null
+							]
+,[
+								0,
+								0
+							]
+,[
+								2,
+								"~"
+							]
+							]
+						]
+					]
+,					[
+						8,
+						0
+					]
+,					[
+						7,
+						[
+							2,
+							"1"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					4913467988241018
+					,[
+					[
+						11,
+						"balance"
+					]
+,					[
+						7,
+						[
+							0,
+							0
+						]
+					]
+					]
+				]
+,				[
+					80,
+					cr.plugins_.Text.prototype.acts.SetText,
+					null,
+					7417822387631815
+					,[
+					[
+						7,
+						[
+							2,
+							"Balance: $0"
+						]
+					]
+					]
+				]
+,				[
+					86,
+					cr.plugins_.Sprite.prototype.acts.SetVisible,
+					null,
+					5759122118663103
+					,[
+					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					79,
+					cr.plugins_.Rex_Container.prototype.acts.ContainerDestroy,
+					null,
+					6401134547294463
 				]
 				]
 			]
@@ -24835,115 +26486,115 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				22,
+				21,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				3514317222629168
 			]
 ,			[
-				18,
+				17,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				9989577737151785
 			]
 ,			[
-				24,
+				23,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				3307758284190507
 			]
 ,			[
-				21,
+				20,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				3781355281859589
 			]
 ,			[
-				19,
+				18,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				8473748755925142
 			]
 ,			[
-				23,
+				22,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				7960870261855805
 			]
 ,			[
-				17,
+				16,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				901394089938965
 			]
 ,			[
-				16,
+				15,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				5264311122228074
 			]
 ,			[
-				15,
+				14,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				6306340204755398
 			]
 ,			[
-				14,
+				13,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				5637814274465205
 			]
 ,			[
-				20,
+				19,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				7262280655220434
 			]
 ,			[
-				13,
+				12,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				9492171630588791
 			]
 ,			[
-				12,
+				11,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				7746641521447165
 			]
 ,			[
-				26,
+				25,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				8596303599116308
 			]
 ,			[
-				27,
+				26,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				3033977755394266
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.Destroy,
 				null,
 				8582961722217549
 			]
 ,			[
-				33,
+				32,
 				cr.plugins_.Text.prototype.acts.Destroy,
 				null,
 				1730274630913585
 			]
 ,			[
-				37,
+				36,
 				cr.plugins_.Text.prototype.acts.Destroy,
 				null,
 				3357699500362128
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5486699711997124
@@ -24965,7 +26616,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1020743019199713
@@ -24987,7 +26638,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7490829740526651
@@ -25009,7 +26660,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1753413795031725
@@ -25031,7 +26682,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7810056669012508
@@ -25053,7 +26704,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4907565796126315
@@ -25075,7 +26726,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3606749739697237
@@ -25097,7 +26748,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				20,
+				19,
 				cr.plugins_.Sprite.prototype.acts.SetAnim,
 				null,
 				5451665192315547
@@ -25130,7 +26781,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				37,
+				36,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				1627539494438003
@@ -25139,7 +26790,7 @@ false,false,3997661614259204
 					7,
 					[
 						20,
-						28,
+						27,
 						cr.plugins_.Arr.prototype.exps.At,
 						false,
 						null
@@ -25154,7 +26805,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				25,
+				24,
 				cr.plugins_.Sprite.prototype.acts.SetX,
 				null,
 				2511593436209431
@@ -25195,13 +26846,13 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.Destroy,
 				null,
 				3927914937980052
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.Destroy,
 				null,
 				5989213960594722
@@ -25214,7 +26865,7 @@ false,false,3997661614259204
 				,[
 				[
 					4,
-					12
+					11
 				]
 ,				[
 					5,
@@ -25247,7 +26898,7 @@ false,false,3997661614259204
 				,[
 				[
 					4,
-					13
+					12
 				]
 ,				[
 					5,
@@ -25280,7 +26931,7 @@ false,false,3997661614259204
 				,[
 				[
 					4,
-					41
+					39
 				]
 ,				[
 					5,
@@ -25313,7 +26964,7 @@ false,false,3997661614259204
 				,[
 				[
 					4,
-					40
+					38
 				]
 ,				[
 					5,
@@ -25347,7 +26998,7 @@ false,false,3997661614259204
 			4549058676466055,
 			[
 			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -25359,14 +27010,14 @@ false,false,3997661614259204
 			],
 			[
 			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				6008578458011155
 				,[
 				[
 					4,
-					39
+					37
 				]
 ,				[
 					0,
@@ -25392,7 +27043,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				39,
+				37,
 				cr.plugins_.Sprite.prototype.acts.SetWidth,
 				null,
 				804209202909485
@@ -25407,14 +27058,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				3219393638684827
 				,[
 				[
 					4,
-					32
+					31
 				]
 ,				[
 					0,
@@ -25422,7 +27073,7 @@ false,false,3997661614259204
 						5,
 						[
 							20,
-							39,
+							37,
 							cr.plugins_.Sprite.prototype.exps.X,
 							false,
 							null
@@ -25431,7 +27082,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Width,
 								false,
 								null
@@ -25451,7 +27102,7 @@ false,false,3997661614259204
 							5,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -25460,7 +27111,7 @@ false,false,3997661614259204
 								7,
 								[
 									20,
-									39,
+									37,
 									cr.plugins_.Sprite.prototype.exps.Height,
 									false,
 									null
@@ -25487,7 +27138,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				29,
+				28,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7588257646328953
@@ -25503,7 +27154,7 @@ false,false,3997661614259204
 					7,
 					[
 						20,
-						32,
+						31,
 						cr.plugins_.Text.prototype.exps.UID,
 						false,
 						null
@@ -25512,7 +27163,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetSize,
 				null,
 				5249807950425706
@@ -25521,7 +27172,7 @@ false,false,3997661614259204
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Width,
 						false,
 						null
@@ -25531,7 +27182,7 @@ false,false,3997661614259204
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Height,
 						false,
 						null
@@ -25540,7 +27191,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetFontSize,
 				null,
 				6125055144717898
@@ -25555,7 +27206,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				7254775211010777
@@ -25577,14 +27228,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				7737177094300879
 				,[
 				[
 					4,
-					39
+					37
 				]
 ,				[
 					0,
@@ -25610,7 +27261,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				39,
+				37,
 				cr.plugins_.Sprite.prototype.acts.SetWidth,
 				null,
 				4325578899458894
@@ -25625,14 +27276,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				8006491086291563
 				,[
 				[
 					4,
-					32
+					31
 				]
 ,				[
 					0,
@@ -25640,7 +27291,7 @@ false,false,3997661614259204
 						5,
 						[
 							20,
-							39,
+							37,
 							cr.plugins_.Sprite.prototype.exps.X,
 							false,
 							null
@@ -25649,7 +27300,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Width,
 								false,
 								null
@@ -25669,7 +27320,7 @@ false,false,3997661614259204
 							5,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -25678,7 +27329,7 @@ false,false,3997661614259204
 								7,
 								[
 									20,
-									39,
+									37,
 									cr.plugins_.Sprite.prototype.exps.Height,
 									false,
 									null
@@ -25705,7 +27356,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				29,
+				28,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				8272659308799488
@@ -25721,7 +27372,7 @@ false,false,3997661614259204
 					7,
 					[
 						20,
-						32,
+						31,
 						cr.plugins_.Text.prototype.exps.UID,
 						false,
 						null
@@ -25730,7 +27381,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetSize,
 				null,
 				8912678005841676
@@ -25739,7 +27390,7 @@ false,false,3997661614259204
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Width,
 						false,
 						null
@@ -25749,7 +27400,7 @@ false,false,3997661614259204
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Height,
 						false,
 						null
@@ -25758,7 +27409,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetFontSize,
 				null,
 				882768553857715
@@ -25773,7 +27424,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				9304202356388354
@@ -25788,7 +27439,7 @@ false,false,3997661614259204
 						]
 						,[
 							20,
-							28,
+							27,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -25804,14 +27455,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				8197794347973357
 				,[
 				[
 					4,
-					39
+					37
 				]
 ,				[
 					0,
@@ -25837,7 +27488,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				39,
+				37,
 				cr.plugins_.Sprite.prototype.acts.SetWidth,
 				null,
 				9709331729626454
@@ -25852,14 +27503,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				2262953886957519
 				,[
 				[
 					4,
-					32
+					31
 				]
 ,				[
 					0,
@@ -25867,7 +27518,7 @@ false,false,3997661614259204
 						5,
 						[
 							20,
-							39,
+							37,
 							cr.plugins_.Sprite.prototype.exps.X,
 							false,
 							null
@@ -25876,7 +27527,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Width,
 								false,
 								null
@@ -25896,7 +27547,7 @@ false,false,3997661614259204
 							5,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -25905,7 +27556,7 @@ false,false,3997661614259204
 								7,
 								[
 									20,
-									39,
+									37,
 									cr.plugins_.Sprite.prototype.exps.Height,
 									false,
 									null
@@ -25932,7 +27583,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				29,
+				28,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3859680423541736
@@ -25948,7 +27599,7 @@ false,false,3997661614259204
 					7,
 					[
 						20,
-						32,
+						31,
 						cr.plugins_.Text.prototype.exps.UID,
 						false,
 						null
@@ -25957,7 +27608,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetSize,
 				null,
 				4068097549937382
@@ -25966,7 +27617,7 @@ false,false,3997661614259204
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Width,
 						false,
 						null
@@ -25976,7 +27627,7 @@ false,false,3997661614259204
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Height,
 						false,
 						null
@@ -25985,7 +27636,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetFontSize,
 				null,
 				1604302925717988
@@ -26000,7 +27651,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				1957991232777934
@@ -26023,7 +27674,7 @@ false,false,3997661614259204
 			4465194094301262,
 			[
 			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -26035,14 +27686,14 @@ false,false,3997661614259204
 			],
 			[
 			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				544668246612688
 				,[
 				[
 					4,
-					16
+					15
 				]
 ,				[
 					0,
@@ -26075,14 +27726,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				300093239209882
 				,[
 				[
 					4,
-					17
+					16
 				]
 ,				[
 					0,
@@ -26115,14 +27766,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				5420534629836716
 				,[
 				[
 					4,
-					14
+					13
 				]
 ,				[
 					0,
@@ -26155,14 +27806,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				7535768237109129
 				,[
 				[
 					4,
-					15
+					14
 				]
 ,				[
 					0,
@@ -26195,14 +27846,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				8086621194381422
 				,[
 				[
 					4,
-					20
+					19
 				]
 ,				[
 					0,
@@ -26235,7 +27886,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				20,
+				19,
 				cr.plugins_.Sprite.prototype.acts.SetAnim,
 				null,
 				9187076457053012
@@ -26268,14 +27919,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				4808924255750386
 				,[
 				[
 					4,
-					37
+					36
 				]
 ,				[
 					0,
@@ -26283,7 +27934,7 @@ false,false,3997661614259204
 						5,
 						[
 							20,
-							20,
+							19,
 							cr.plugins_.Sprite.prototype.exps.X,
 							false,
 							null
@@ -26292,7 +27943,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								20,
+								19,
 								cr.plugins_.Sprite.prototype.exps.Width,
 								false,
 								null
@@ -26312,7 +27963,7 @@ false,false,3997661614259204
 							5,
 							[
 								20,
-								20,
+								19,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -26321,7 +27972,7 @@ false,false,3997661614259204
 								7,
 								[
 									20,
-									20,
+									19,
 									cr.plugins_.Sprite.prototype.exps.Height,
 									false,
 									null
@@ -26348,14 +27999,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				37,
+				36,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
 				6132065269889797
 				,[
 				[
 					4,
-					20
+					19
 				]
 ,				[
 					3,
@@ -26364,7 +28015,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				37,
+				36,
 				cr.plugins_.Text.prototype.acts.SetSize,
 				null,
 				9409467815377002
@@ -26373,7 +28024,7 @@ false,false,3997661614259204
 					0,
 					[
 						20,
-						20,
+						19,
 						cr.plugins_.Sprite.prototype.exps.Width,
 						false,
 						null
@@ -26383,7 +28034,7 @@ false,false,3997661614259204
 					0,
 					[
 						20,
-						20,
+						19,
 						cr.plugins_.Sprite.prototype.exps.Height,
 						false,
 						null
@@ -26392,7 +28043,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				37,
+				36,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				8063380830662083
@@ -26401,7 +28052,7 @@ false,false,3997661614259204
 					7,
 					[
 						20,
-						28,
+						27,
 						cr.plugins_.Arr.prototype.exps.At,
 						false,
 						null
@@ -26416,7 +28067,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				37,
+				36,
 				cr.plugins_.Text.prototype.acts.SetVisible,
 				null,
 				2073098241684356
@@ -26428,14 +28079,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				7827467301563239
 				,[
 				[
 					4,
-					21
+					20
 				]
 ,				[
 					0,
@@ -26468,14 +28119,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				1492034483684794
 				,[
 				[
 					4,
-					18
+					17
 				]
 ,				[
 					0,
@@ -26508,14 +28159,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				1246019028612419
 				,[
 				[
 					4,
-					19
+					18
 				]
 ,				[
 					0,
@@ -26548,10 +28199,50 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				3680050802081232
+				,[
+				[
+					4,
+					21
+				]
+,				[
+					0,
+					[
+						0,
+						280
+					]
+				]
+,				[
+					0,
+					[
+						4,
+						[
+							23,
+							"StartHeight"
+						]
+						,[
+							0,
+							80
+						]
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						3
+					]
+				]
+				]
+			]
+,			[
+				38,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				8975915353323317
 				,[
 				[
 					4,
@@ -26561,46 +28252,6 @@ false,false,3997661614259204
 					0,
 					[
 						0,
-						280
-					]
-				]
-,				[
-					0,
-					[
-						4,
-						[
-							23,
-							"StartHeight"
-						]
-						,[
-							0,
-							80
-						]
-					]
-				]
-,				[
-					7,
-					[
-						0,
-						3
-					]
-				]
-				]
-			]
-,			[
-				40,
-				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
-				null,
-				8975915353323317
-				,[
-				[
-					4,
-					23
-				]
-,				[
-					0,
-					[
-						0,
 						200
 					]
 				]
@@ -26628,14 +28279,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				1376901654771677
 				,[
 				[
 					4,
-					24
+					23
 				]
 ,				[
 					0,
@@ -26668,14 +28319,14 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				40,
+				38,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				9807004565068075
 				,[
 				[
 					4,
-					32
+					31
 				]
 ,				[
 					0,
@@ -26690,7 +28341,7 @@ false,false,3997661614259204
 						5,
 						[
 							20,
-							23,
+							22,
 							cr.plugins_.Sprite.prototype.exps.Y,
 							false,
 							null
@@ -26711,7 +28362,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				29,
+				28,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6704046119082511
@@ -26727,7 +28378,7 @@ false,false,3997661614259204
 					7,
 					[
 						20,
-						32,
+						31,
 						cr.plugins_.Text.prototype.exps.UID,
 						false,
 						null
@@ -26736,7 +28387,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetWebFont,
 				null,
 				7983880306117966
@@ -26758,7 +28409,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				6619466069488376
@@ -26773,7 +28424,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetVisible,
 				null,
 				8402209550318222
@@ -26785,7 +28436,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				21,
+				20,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				93339084197945
@@ -26797,7 +28448,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				18,
+				17,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				1922144050561628
@@ -26809,7 +28460,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				19,
+				18,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				4592930316055808
@@ -26821,7 +28472,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				22,
+				21,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				6354704630827809
@@ -26833,7 +28484,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				23,
+				22,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				7451116054933058
@@ -26845,7 +28496,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				24,
+				23,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				4488311255954061
@@ -26857,7 +28508,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				15,
+				14,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				8440341663357395
@@ -26869,7 +28520,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				14,
+				13,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				4527005071302821
@@ -26881,7 +28532,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				20,
+				19,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				113933337084966
@@ -26893,7 +28544,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				16,
+				15,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				4021741036190043
@@ -26905,7 +28556,7 @@ false,false,3997661614259204
 				]
 			]
 ,			[
-				17,
+				16,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				9148743894736889
@@ -27010,7 +28661,7 @@ false,false,3997661614259204
 				],
 				[
 				[
-					23,
+					22,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					4763517111916913
@@ -27022,7 +28673,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					23,
+					22,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					829921296833294
@@ -27048,7 +28699,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					24,
+					23,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					3317785683974096
@@ -27060,7 +28711,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					24,
+					23,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					4450092381213059
@@ -27119,7 +28770,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetVisible,
 					null,
 					9056885377318026
@@ -27168,7 +28819,7 @@ false,false,3997661614259204
 				],
 				[
 				[
-					16,
+					15,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					1490625089440907
@@ -27180,7 +28831,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					17,
+					16,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					1471562646309396
@@ -27192,7 +28843,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					15,
+					14,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					7090428892217555
@@ -27204,7 +28855,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					14,
+					13,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					5932655625157896
@@ -27216,7 +28867,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					20,
+					19,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					9282438251391232
@@ -27228,7 +28879,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					16,
+					15,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					4009098498948086
@@ -27254,7 +28905,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					17,
+					16,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					6797440820512211
@@ -27280,7 +28931,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					15,
+					14,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					6390554496705302
@@ -27306,7 +28957,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					14,
+					13,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					588300014538979
@@ -27332,7 +28983,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					37,
+					36,
 					cr.plugins_.Text.prototype.acts.SetVisible,
 					null,
 					6213836687396764
@@ -27381,7 +29032,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						17,
+						16,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						8061217163871275
@@ -27445,7 +29096,7 @@ false,false,3997661614259204
 				],
 				[
 				[
-					18,
+					17,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					6904457743581952
@@ -27457,7 +29108,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					131103563733924
@@ -27469,7 +29120,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					18,
+					17,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					2744876390253816
@@ -27495,7 +29146,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					6132246723172954
@@ -27585,7 +29236,7 @@ false,false,3997661614259204
 				],
 				[
 				[
-					22,
+					21,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					4599628956262529
@@ -27597,7 +29248,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					22,
+					21,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					531793201293259
@@ -27687,7 +29338,7 @@ false,false,3997661614259204
 				],
 				[
 				[
-					21,
+					20,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					1711298449165322
@@ -27699,7 +29350,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					21,
+					20,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					393286355611299
@@ -27775,7 +29426,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						15
+						14
 					]
 					]
 				]
@@ -27895,7 +29546,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						20,
+						19,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						4790283961641471
@@ -27928,7 +29579,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						37,
+						36,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						7343744654610217
@@ -27937,7 +29588,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -27952,7 +29603,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						14,
+						13,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						5881761701147356
@@ -28008,7 +29659,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						15,
+						14,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						8787600871615578
@@ -28068,7 +29719,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.cnds.PickByUID,
 						null,
 						0,
@@ -28081,7 +29732,7 @@ false,false,3997661614259204
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -28111,7 +29762,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -28126,7 +29777,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						5353784119141869
@@ -28144,6 +29795,101 @@ false,false,3997661614259204
 									"bet"
 								]
 							]
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					7978605709778267,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.CompareVar,
+						null,
+						0,
+						false,
+						false,
+						false,
+						6308134083575625
+						,[
+						[
+							11,
+							"bet"
+						]
+,						[
+							8,
+							4
+						]
+,						[
+							7,
+							[
+								23,
+								"balance"
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						16,
+						cr.plugins_.Sprite.prototype.acts.SetAnim,
+						null,
+						772324907375745
+						,[
+						[
+							1,
+							[
+								2,
+								"s1"
+							]
+						]
+,						[
+							3,
+							1
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					9820085416524575,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.Else,
+						null,
+						0,
+						false,
+						false,
+						false,
+						6489707219311228
+					]
+					],
+					[
+					[
+						16,
+						cr.plugins_.Sprite.prototype.acts.SetAnim,
+						null,
+						6784875207747474
+						,[
+						[
+							1,
+							[
+								2,
+								"s0"
+							]
+						]
+,						[
+							3,
+							1
 						]
 						]
 					]
@@ -28169,7 +29915,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						14
+						13
 					]
 					]
 				]
@@ -28289,7 +30035,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						20,
+						19,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						4071278247118884
@@ -28322,7 +30068,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						37,
+						36,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						1957083399616135
@@ -28331,7 +30077,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -28346,7 +30092,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						15,
+						14,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						5211826526977123
@@ -28402,7 +30148,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						14,
+						13,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						4598524229417927
@@ -28462,7 +30208,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.cnds.PickByUID,
 						null,
 						0,
@@ -28475,7 +30221,7 @@ false,false,3997661614259204
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -28505,7 +30251,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -28520,7 +30266,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						2932258444496234
@@ -28538,6 +30284,101 @@ false,false,3997661614259204
 									"bet"
 								]
 							]
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					2732746418982857,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.CompareVar,
+						null,
+						0,
+						false,
+						false,
+						false,
+						4808135429166979
+						,[
+						[
+							11,
+							"bet"
+						]
+,						[
+							8,
+							4
+						]
+,						[
+							7,
+							[
+								23,
+								"balance"
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						16,
+						cr.plugins_.Sprite.prototype.acts.SetAnim,
+						null,
+						2176219460508432
+						,[
+						[
+							1,
+							[
+								2,
+								"s1"
+							]
+						]
+,						[
+							3,
+							1
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					6859525312015362,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.Else,
+						null,
+						0,
+						false,
+						false,
+						false,
+						6044415685793193
+					]
+					],
+					[
+					[
+						16,
+						cr.plugins_.Sprite.prototype.acts.SetAnim,
+						null,
+						5225993247876135
+						,[
+						[
+							1,
+							[
+								2,
+								"s0"
+							]
+						]
+,						[
+							3,
+							1
 						]
 						]
 					]
@@ -28563,7 +30404,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						17
+						16
 					]
 					]
 				]
@@ -28598,7 +30439,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					17,
+					16,
 					cr.plugins_.Sprite.prototype.cnds.IsVisible,
 					null,
 					0,
@@ -28621,7 +30462,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							17,
+							16,
 							cr.plugins_.Sprite.prototype.exps.AnimationName,
 							true,
 							null
@@ -28640,10 +30481,37 @@ false,false,3997661614259204
 					]
 					]
 				]
+,				[
+					-1,
+					cr.system_object.prototype.cnds.CompareVar,
+					null,
+					0,
+					false,
+					false,
+					false,
+					8768487206929609
+					,[
+					[
+						11,
+						"balance"
+					]
+,					[
+						8,
+						5
+					]
+,					[
+						7,
+						[
+							23,
+							"bet"
+						]
+					]
+					]
+				]
 				],
 				[
 				[
-					42,
+					40,
 					cr.plugins_.Rex_Container.prototype.acts.ContainerDestroy,
 					null,
 					3225110460857094
@@ -28741,7 +30609,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						18
+						17
 					]
 					]
 				]
@@ -28779,7 +30647,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					18,
+					17,
 					cr.plugins_.Sprite.prototype.cnds.IsVisible,
 					null,
 					0,
@@ -28802,7 +30670,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							18,
+							17,
 							cr.plugins_.Sprite.prototype.exps.AnimationName,
 							true,
 							null
@@ -28891,7 +30759,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						22
+						21
 					]
 					]
 				]
@@ -28929,7 +30797,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					22,
+					21,
 					cr.plugins_.Sprite.prototype.cnds.IsVisible,
 					null,
 					0,
@@ -28952,7 +30820,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							22,
+							21,
 							cr.plugins_.Sprite.prototype.exps.AnimationName,
 							true,
 							null
@@ -29026,20 +30894,20 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					36,
+					35,
 					cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 					null,
 					6340200887045136
 					,[
 					[
 						4,
-						32
+						31
 					]
 ,					[
 						0,
 						[
 							20,
-							29,
+							28,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -29058,7 +30926,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetText,
 					null,
 					8920317679679831
@@ -29080,20 +30948,20 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					36,
+					35,
 					cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 					null,
 					6055536986697697
 					,[
 					[
 						4,
-						32
+						31
 					]
 ,					[
 						0,
 						[
 							20,
-							29,
+							28,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -29112,7 +30980,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetText,
 					null,
 					9381867841142822
@@ -29201,12 +31069,12 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						21
+						20
 					]
 					]
 				]
 ,				[
-					21,
+					20,
 					cr.plugins_.Sprite.prototype.cnds.IsVisible,
 					null,
 					0,
@@ -29229,7 +31097,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							21,
+							20,
 							cr.plugins_.Sprite.prototype.exps.AnimationName,
 							true,
 							null
@@ -29321,12 +31189,12 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						16
+						15
 					]
 					]
 				]
 ,				[
-					16,
+					15,
 					cr.plugins_.Sprite.prototype.cnds.IsVisible,
 					null,
 					0,
@@ -29349,7 +31217,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							16,
+							15,
 							cr.plugins_.Sprite.prototype.exps.AnimationName,
 							true,
 							null
@@ -29429,7 +31297,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						23
+						22
 					]
 					]
 				]
@@ -29461,7 +31329,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					23,
+					22,
 					cr.plugins_.Sprite.prototype.cnds.IsVisible,
 					null,
 					0,
@@ -29484,7 +31352,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							23,
+							22,
 							cr.plugins_.Sprite.prototype.exps.AnimationName,
 							true,
 							null
@@ -29543,7 +31411,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						24
+						23
 					]
 					]
 				]
@@ -29575,7 +31443,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					24,
+					23,
 					cr.plugins_.Sprite.prototype.cnds.IsVisible,
 					null,
 					0,
@@ -29598,7 +31466,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							24,
+							23,
 							cr.plugins_.Sprite.prototype.exps.AnimationName,
 							true,
 							null
@@ -29713,12 +31581,12 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						19
+						18
 					]
 					]
 				]
 ,				[
-					19,
+					18,
 					cr.plugins_.Sprite.prototype.cnds.IsVisible,
 					null,
 					0,
@@ -29774,7 +31642,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							19,
+							18,
 							cr.plugins_.Sprite.prototype.exps.AnimationName,
 							true,
 							null
@@ -29912,7 +31780,7 @@ false,false,3997661614259204
 					3338540207481986,
 					[
 					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.cnds.OnComplete,
 						null,
 						1,
@@ -29946,7 +31814,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								34,
+								33,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -29955,14 +31823,14 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						42,
+						40,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						9597635618917311
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
@@ -29988,7 +31856,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						29,
+						28,
 						cr.plugins_.Arr.prototype.acts.SetX,
 						null,
 						1364138467293059
@@ -30004,7 +31872,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								32,
+								31,
 								cr.plugins_.Text.prototype.exps.UID,
 								false,
 								null
@@ -30013,14 +31881,14 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						239564689022389
 						,[
 						[
 							4,
-							42
+							40
 						]
 ,						[
 							3,
@@ -30029,7 +31897,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontSize,
 						null,
 						4261169800742544
@@ -30044,7 +31912,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetWidth,
 						null,
 						4314590703430239
@@ -30059,7 +31927,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontColor,
 						null,
 						6795146918506436
@@ -30088,7 +31956,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						2983328437364664
@@ -30103,14 +31971,14 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						42,
+						40,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						7288044610749059
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
@@ -30136,7 +32004,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						29,
+						28,
 						cr.plugins_.Arr.prototype.acts.SetX,
 						null,
 						8924290847923544
@@ -30152,7 +32020,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								32,
+								31,
 								cr.plugins_.Text.prototype.exps.UID,
 								false,
 								null
@@ -30161,14 +32029,14 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						9729688509656112
 						,[
 						[
 							4,
-							42
+							40
 						]
 ,						[
 							3,
@@ -30177,7 +32045,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontSize,
 						null,
 						1180282997268039
@@ -30192,7 +32060,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetWidth,
 						null,
 						8419488680141797
@@ -30207,7 +32075,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontColor,
 						null,
 						6719647302551629
@@ -30236,7 +32104,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						5992744800487184
@@ -30251,14 +32119,14 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						42,
+						40,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						459749506922347
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
@@ -30284,7 +32152,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						29,
+						28,
 						cr.plugins_.Arr.prototype.acts.SetX,
 						null,
 						1372565400189819
@@ -30300,7 +32168,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								32,
+								31,
 								cr.plugins_.Text.prototype.exps.UID,
 								false,
 								null
@@ -30309,14 +32177,14 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						4030931235476872
 						,[
 						[
 							4,
-							42
+							40
 						]
 ,						[
 							3,
@@ -30325,7 +32193,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontSize,
 						null,
 						2927034161846864
@@ -30340,7 +32208,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetWidth,
 						null,
 						8368316449724078
@@ -30355,7 +32223,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontColor,
 						null,
 						4227917006781055
@@ -30384,7 +32252,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						5411205991095066
@@ -30614,7 +32482,7 @@ false,false,3997661614259204
 					5902506821335092,
 					[
 					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.cnds.OnComplete,
 						null,
 						1,
@@ -30717,20 +32585,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						8534807912514136
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -30749,7 +32617,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						7311726864188234
@@ -30771,20 +32639,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						6493066325591685
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -30803,7 +32671,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						9950963590113063
@@ -30877,7 +32745,7 @@ false,false,3997661614259204
 					6571039706782965,
 					[
 					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.cnds.OnComplete,
 						null,
 						1,
@@ -30960,7 +32828,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								34,
+								33,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -31021,20 +32889,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						2882333940860643
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -31053,7 +32921,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						3981513862605239
@@ -31075,20 +32943,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						7081443039034803
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -31107,7 +32975,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						728101193222615
@@ -31257,20 +33125,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						2139020466273246
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -31289,7 +33157,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						8766459864476453
@@ -31304,20 +33172,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						7077372921958793
 						,[
 						[
 							4,
-							27
+							26
 						]
 ,						[
 							0,
 							[
 								20,
-								30,
+								29,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -31336,7 +33204,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						27,
+						26,
 						cr.behaviors.Rex_MoveTo.prototype.acts.SetTargetPos,
 						"MoveTo",
 						3442950645446343
@@ -31358,20 +33226,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						6640664720064769
 						,[
 						[
 							4,
-							27
+							26
 						]
 ,						[
 							0,
 							[
 								20,
-								30,
+								29,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -31390,7 +33258,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						27,
+						26,
 						cr.behaviors.Rex_MoveTo.prototype.acts.SetTargetPos,
 						"MoveTo",
 						9511204999181074
@@ -31420,7 +33288,7 @@ false,false,3997661614259204
 					1534323809863767,
 					[
 					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.cnds.OnComplete,
 						null,
 						1,
@@ -31454,7 +33322,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								34,
+								33,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -31554,7 +33422,7 @@ false,false,3997661614259204
 					122564380847816,
 					[
 					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.cnds.OnComplete,
 						null,
 						1,
@@ -31618,7 +33486,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								34,
+								33,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -31718,7 +33586,7 @@ false,false,3997661614259204
 					3216700518817711,
 					[
 					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.cnds.OnComplete,
 						null,
 						1,
@@ -31752,7 +33620,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								34,
+								33,
 								cr.plugins_.AJAX.prototype.exps.LastData,
 								true,
 								null
@@ -32877,20 +34745,20 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							36,
+							35,
 							cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 							null,
 							6952027080537705
 							,[
 							[
 								4,
-								32
+								31
 							]
 ,							[
 								0,
 								[
 									20,
-									29,
+									28,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -32909,7 +34777,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetText,
 							null,
 							7619509763506992
@@ -32938,20 +34806,20 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							36,
+							35,
 							cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 							null,
 							6283378637993214
 							,[
 							[
 								4,
-								32
+								31
 							]
 ,							[
 								0,
 								[
 									20,
-									29,
+									28,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -32970,7 +34838,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetText,
 							null,
 							4882048763510088
@@ -33002,7 +34870,7 @@ false,false,3997661614259204
 					6485447154351928,
 					[
 					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.cnds.OnComplete,
 						null,
 						1,
@@ -33147,7 +35015,7 @@ false,false,3997661614259204
 								7,
 								[
 									20,
-									34,
+									33,
 									cr.plugins_.AJAX.prototype.exps.LastData,
 									true,
 									null
@@ -33688,13 +35556,13 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						30,
+						29,
 						cr.plugins_.Arr.prototype.acts.Clear,
 						null,
 						4704049278530671
 					]
 ,					[
-						30,
+						29,
 						cr.plugins_.Arr.prototype.acts.SetInstanceVar,
 						null,
 						6837750641619016
@@ -33726,7 +35594,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -33767,20 +35635,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						370308897861427
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -33799,7 +35667,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						981459075657539
@@ -33821,20 +35689,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						1668993422734483
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -33853,7 +35721,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						8977622748980075
@@ -33875,20 +35743,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						1790886954912561
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -33907,7 +35775,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						2372690723132149
@@ -33940,7 +35808,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.acts.Request,
 						null,
 						230186169272591
@@ -34016,7 +35884,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.acts.Request,
 						null,
 						7215587059801872
@@ -34067,7 +35935,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.acts.Request,
 						null,
 						1421957172399427
@@ -34136,7 +36004,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.acts.Request,
 						null,
 						3348739553264398
@@ -34213,7 +36081,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						22,
+						21,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						5858033371674753
@@ -34232,7 +36100,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						18,
+						17,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						4266312908904067
@@ -34251,7 +36119,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						5137207785558168
@@ -34270,7 +36138,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						21,
+						20,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						3364097857133809
@@ -34289,7 +36157,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						24,
+						23,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						8868708379144442
@@ -34308,7 +36176,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						23,
+						22,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						4420770152279841
@@ -34375,7 +36243,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						22,
+						21,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						545590987090826
@@ -34394,7 +36262,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						18,
+						17,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						9214320157777544
@@ -34413,7 +36281,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						19,
+						18,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						112440430267435
@@ -34432,7 +36300,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						21,
+						20,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						6342749771924089
@@ -34451,7 +36319,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						24,
+						23,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						1989399944780149
@@ -34470,7 +36338,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						23,
+						22,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						2415191787387439
@@ -34536,7 +36404,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.acts.Request,
 						null,
 						9169411688620708
@@ -34612,7 +36480,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						34,
+						33,
 						cr.plugins_.AJAX.prototype.acts.Request,
 						null,
 						3820206981490023
@@ -34725,7 +36593,7 @@ false,false,3997661614259204
 						],
 						[
 						[
-							34,
+							33,
 							cr.plugins_.AJAX.prototype.acts.Request,
 							null,
 							5279434049932203
@@ -34853,7 +36721,7 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								34,
+								33,
 								cr.plugins_.AJAX.prototype.acts.Request,
 								null,
 								6970046077792957
@@ -34902,7 +36770,7 @@ false,false,3997661614259204
 							],
 							[
 							[
-								34,
+								33,
 								cr.plugins_.AJAX.prototype.acts.Request,
 								null,
 								3674586737645482
@@ -35027,7 +36895,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						26
+						25
 					]
 ,					[
 						5,
@@ -35053,7 +36921,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					26,
+					25,
 					cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 					null,
 					5967078832712282
@@ -35164,7 +37032,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						26,
+						25,
 						cr.behaviors.Rex_MoveTo.prototype.acts.SetTargetPos,
 						"MoveTo",
 						6340228586690133
@@ -35426,7 +37294,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							26,
+							25,
 							cr.behaviors.Rex_MoveTo.prototype.acts.SetTargetPos,
 							"MoveTo",
 							2612133977406634
@@ -35668,7 +37536,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							26,
+							25,
 							cr.behaviors.Rex_MoveTo.prototype.acts.SetTargetPos,
 							"MoveTo",
 							7020648818887861
@@ -35871,7 +37739,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						26
+						25
 					]
 ,					[
 						5,
@@ -35939,7 +37807,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					26,
+					25,
 					cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 					null,
 					7127798821165885
@@ -36009,7 +37877,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					26,
+					25,
 					cr.behaviors.Rex_MoveTo.prototype.acts.SetTargetPos,
 					"MoveTo",
 					4762503994407344
@@ -36166,7 +38034,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						26
+						25
 					]
 ,					[
 						5,
@@ -36246,7 +38114,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					26,
+					25,
 					cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 					null,
 					9622944230744876
@@ -36305,7 +38173,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					26,
+					25,
 					cr.behaviors.Rex_MoveTo.prototype.acts.SetTargetPos,
 					"MoveTo",
 					7427798830208495
@@ -36417,7 +38285,7 @@ false,false,3997661614259204
 				5711547300967437,
 				[
 				[
-					26,
+					25,
 					cr.plugins_.Sprite.prototype.cnds.OnAnimFinished,
 					null,
 					1,
@@ -36438,20 +38306,20 @@ false,false,3997661614259204
 				],
 				[
 				[
-					42,
+					40,
 					cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 					null,
 					9704171050709813
 					,[
 					[
 						4,
-						27
+						26
 					]
 ,					[
 						0,
 						[
 							20,
-							26,
+							25,
 							cr.plugins_.Sprite.prototype.exps.X,
 							false,
 							null
@@ -36461,7 +38329,7 @@ false,false,3997661614259204
 						0,
 						[
 							20,
-							26,
+							25,
 							cr.plugins_.Sprite.prototype.exps.Y,
 							false,
 							null
@@ -36506,7 +38374,7 @@ false,false,3997661614259204
 									,[
 [
 										21,
-										26,
+										25,
 										true,
 										null
 										,0
@@ -36540,7 +38408,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						27,
+						26,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						6969840502077056
@@ -36553,7 +38421,7 @@ false,false,3997661614259204
 								,[
 [
 									21,
-									26,
+									25,
 									true,
 									null
 									,0
@@ -36576,14 +38444,14 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						42,
+						40,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						140620629200472
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
@@ -36591,7 +38459,7 @@ false,false,3997661614259204
 								5,
 								[
 									20,
-									27,
+									26,
 									cr.plugins_.Sprite.prototype.exps.X,
 									false,
 									null
@@ -36608,7 +38476,7 @@ false,false,3997661614259204
 								5,
 								[
 									20,
-									27,
+									26,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -36629,14 +38497,14 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						7546729746811218
 						,[
 						[
 							4,
-							27
+							26
 						]
 ,						[
 							3,
@@ -36645,7 +38513,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontFace,
 						null,
 						3692465903012133
@@ -36664,7 +38532,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontSize,
 						null,
 						2574465196565013
@@ -36679,7 +38547,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetWidth,
 						null,
 						2227914416199325
@@ -36694,7 +38562,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetFontColor,
 						null,
 						9181925586156292
@@ -36715,7 +38583,7 @@ false,false,3997661614259204
 										,[
 [
 											21,
-											26,
+											25,
 											true,
 											null
 											,0
@@ -36746,7 +38614,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						5058812428011652
@@ -36759,7 +38627,7 @@ false,false,3997661614259204
 								,[
 [
 									21,
-									26,
+									25,
 									true,
 									null
 									,0
@@ -36827,7 +38695,7 @@ false,false,3997661614259204
 										,[
 [
 											21,
-											26,
+											25,
 											true,
 											null
 											,0
@@ -36861,7 +38729,7 @@ false,false,3997661614259204
 						],
 						[
 						[
-							27,
+							26,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							3240296022859456
@@ -36874,7 +38742,7 @@ false,false,3997661614259204
 									,[
 [
 										21,
-										26,
+										25,
 										true,
 										null
 										,0
@@ -36897,14 +38765,14 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							42,
+							40,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							4241908059490558
 							,[
 							[
 								4,
-								32
+								31
 							]
 ,							[
 								0,
@@ -36912,7 +38780,7 @@ false,false,3997661614259204
 									5,
 									[
 										20,
-										26,
+										25,
 										cr.plugins_.Sprite.prototype.exps.X,
 										false,
 										null
@@ -36929,7 +38797,7 @@ false,false,3997661614259204
 									5,
 									[
 										20,
-										26,
+										25,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -36950,14 +38818,14 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							1781148696211302
 							,[
 							[
 								4,
-								27
+								26
 							]
 ,							[
 								3,
@@ -36966,7 +38834,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetFontFace,
 							null,
 							1998127088720642
@@ -36985,7 +38853,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetFontSize,
 							null,
 							6732582470681251
@@ -37000,7 +38868,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetWidth,
 							null,
 							5872113871583555
@@ -37015,7 +38883,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetFontColor,
 							null,
 							8711314098990026
@@ -37036,7 +38904,7 @@ false,false,3997661614259204
 											,[
 [
 												21,
-												26,
+												25,
 												true,
 												null
 												,0
@@ -37067,7 +38935,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetText,
 							null,
 							8008558787783466
@@ -37102,7 +38970,7 @@ false,false,3997661614259204
 						],
 						[
 						[
-							27,
+							26,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							9321849097011895
@@ -37117,7 +38985,7 @@ false,false,3997661614259204
 										,[
 [
 											21,
-											26,
+											25,
 											true,
 											null
 											,0
@@ -37138,7 +39006,7 @@ false,false,3997661614259204
 										,[
 [
 											21,
-											26,
+											25,
 											true,
 											null
 											,0
@@ -37172,7 +39040,7 @@ false,false,3997661614259204
 					8684908777978945,
 					[
 					[
-						26,
+						25,
 						cr.plugins_.Sprite.prototype.cnds.CompareY,
 						null,
 						0,
@@ -37197,7 +39065,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						30,
+						29,
 						cr.plugins_.Arr.prototype.acts.SetX,
 						null,
 						259031718480088
@@ -37206,7 +39074,7 @@ false,false,3997661614259204
 							0,
 							[
 								21,
-								30,
+								29,
 								false,
 								null
 								,0
@@ -37216,7 +39084,7 @@ false,false,3997661614259204
 							7,
 							[
 								20,
-								27,
+								26,
 								cr.plugins_.Sprite.prototype.exps.UID,
 								false,
 								null
@@ -37225,7 +39093,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						30,
+						29,
 						cr.plugins_.Arr.prototype.acts.AddInstanceVar,
 						null,
 						4245749510121554
@@ -37269,7 +39137,7 @@ false,false,3997661614259204
 									,[
 [
 										21,
-										26,
+										25,
 										true,
 										null
 										,0
@@ -37301,20 +39169,20 @@ false,false,3997661614259204
 						],
 						[
 						[
-							36,
+							35,
 							cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 							null,
 							5152108658123895
 							,[
 							[
 								4,
-								32
+								31
 							]
 ,							[
 								0,
 								[
 									20,
-									29,
+									28,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -37333,14 +39201,14 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							1900541117504187
 							,[
 							[
 								4,
-								27
+								26
 							]
 ,							[
 								3,
@@ -37349,7 +39217,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetText,
 							null,
 							1852175287944524
@@ -37421,20 +39289,20 @@ false,false,3997661614259204
 							],
 							[
 							[
-								36,
+								35,
 								cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 								null,
 								6594929537397749
 								,[
 								[
 									4,
-									32
+									31
 								]
 ,								[
 									0,
 									[
 										20,
-										29,
+										28,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -37453,7 +39321,7 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								32,
+								31,
 								cr.plugins_.Text.prototype.acts.SetText,
 								null,
 								7903231821076852
@@ -37466,7 +39334,7 @@ false,false,3997661614259204
 										,[
 [
 											21,
-											26,
+											25,
 											true,
 											null
 											,0
@@ -37522,20 +39390,20 @@ false,false,3997661614259204
 							],
 							[
 							[
-								36,
+								35,
 								cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 								null,
 								3582986414386125
 								,[
 								[
 									4,
-									32
+									31
 								]
 ,								[
 									0,
 									[
 										20,
-										29,
+										28,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -37554,7 +39422,7 @@ false,false,3997661614259204
 								]
 							]
 ,							[
-								32,
+								31,
 								cr.plugins_.Text.prototype.acts.SetText,
 								null,
 								3195629281410742
@@ -37567,7 +39435,7 @@ false,false,3997661614259204
 										,[
 [
 											21,
-											26,
+											25,
 											true,
 											null
 											,0
@@ -37613,7 +39481,7 @@ false,false,3997661614259204
 									,[
 [
 										21,
-										26,
+										25,
 										true,
 										null
 										,0
@@ -37643,7 +39511,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							30,
+							29,
 							cr.plugins_.Arr.prototype.cnds.CompareInstanceVar,
 							null,
 							0,
@@ -37694,7 +39562,7 @@ false,false,3997661614259204
 											,[
 [
 												21,
-												26,
+												25,
 												true,
 												null
 												,0
@@ -37724,7 +39592,7 @@ false,false,3997661614259204
 					4012329130111668,
 					[
 					[
-						26,
+						25,
 						cr.plugins_.Sprite.prototype.cnds.CompareY,
 						null,
 						0,
@@ -37747,7 +39615,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.cnds.PickByUID,
 						null,
 						0,
@@ -37760,7 +39628,7 @@ false,false,3997661614259204
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -37777,7 +39645,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
 						8570390053699304
@@ -37957,7 +39825,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetText,
 							null,
 							1661308251291949
@@ -37984,7 +39852,7 @@ false,false,3997661614259204
 					],
 					[
 					[
-						26,
+						25,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						6295620364321962
@@ -38003,7 +39871,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						26,
+						25,
 						cr.plugins_.Sprite.prototype.acts.Destroy,
 						null,
 						7173953697856219
@@ -38019,7 +39887,7 @@ false,false,3997661614259204
 				9983909742867986,
 				[
 				[
-					26,
+					25,
 					cr.behaviors.Rex_MoveTo.prototype.cnds.OnHitTarget,
 					"MoveTo",
 					1,
@@ -38031,7 +39899,7 @@ false,false,3997661614259204
 				],
 				[
 				[
-					26,
+					25,
 					cr.plugins_.Sprite.prototype.acts.SetAnimSpeed,
 					null,
 					7487086792928992
@@ -38084,7 +39952,7 @@ false,false,3997661614259204
 					5703433578479554,
 					[
 					[
-						26,
+						25,
 						cr.plugins_.Sprite.prototype.cnds.CompareY,
 						null,
 						0,
@@ -38161,7 +40029,7 @@ false,false,3997661614259204
 									4,
 									[
 										20,
-										26,
+										25,
 										cr.plugins_.Sprite.prototype.exps.X,
 										false,
 										null
@@ -38190,7 +40058,7 @@ false,false,3997661614259204
 									4,
 									[
 										20,
-										26,
+										25,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -38256,7 +40124,7 @@ false,false,3997661614259204
 									4,
 									[
 										20,
-										26,
+										25,
 										cr.plugins_.Sprite.prototype.exps.X,
 										false,
 										null
@@ -38285,7 +40153,7 @@ false,false,3997661614259204
 									4,
 									[
 										20,
-										26,
+										25,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -38309,7 +40177,7 @@ false,false,3997661614259204
 					7170084963918678,
 					[
 					[
-						26,
+						25,
 						cr.plugins_.Sprite.prototype.cnds.CompareY,
 						null,
 						0,
@@ -38349,7 +40217,7 @@ false,false,3997661614259204
 								4,
 								[
 									20,
-									26,
+									25,
 									cr.plugins_.Sprite.prototype.exps.X,
 									false,
 									null
@@ -38378,7 +40246,7 @@ false,false,3997661614259204
 								4,
 								[
 									20,
-									26,
+									25,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -38402,7 +40270,7 @@ false,false,3997661614259204
 				6104320235824651,
 				[
 				[
-					27,
+					26,
 					cr.behaviors.Rex_MoveTo.prototype.cnds.OnHitTarget,
 					"MoveTo",
 					1,
@@ -38425,7 +40293,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							27,
+							26,
 							cr.plugins_.Sprite.prototype.exps.UID,
 							false,
 							null
@@ -38439,7 +40307,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							30,
+							29,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -38471,7 +40339,7 @@ false,false,3997661614259204
 							4,
 							[
 								20,
-								27,
+								26,
 								cr.plugins_.Sprite.prototype.exps.X,
 								false,
 								null
@@ -38500,7 +40368,7 @@ false,false,3997661614259204
 							4,
 							[
 								20,
-								27,
+								26,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -38514,20 +40382,20 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					36,
+					35,
 					cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 					null,
 					1585523262793125
 					,[
 					[
 						4,
-						27
+						26
 					]
 ,					[
 						0,
 						[
 							20,
-							30,
+							29,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -38546,14 +40414,14 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					42,
+					40,
 					cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 					null,
 					7838331149197706
 					,[
 					[
 						4,
-						32
+						31
 					]
 ,					[
 						0,
@@ -38561,7 +40429,7 @@ false,false,3997661614259204
 							5,
 							[
 								20,
-								27,
+								26,
 								cr.plugins_.Sprite.prototype.exps.X,
 								false,
 								null
@@ -38589,7 +40457,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					29,
+					28,
 					cr.plugins_.Arr.prototype.acts.SetX,
 					null,
 					6441679190555606
@@ -38605,7 +40473,7 @@ false,false,3997661614259204
 						7,
 						[
 							20,
-							32,
+							31,
 							cr.plugins_.Text.prototype.exps.UID,
 							false,
 							null
@@ -38614,14 +40482,14 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.behaviors.Pin.prototype.acts.Pin,
 					"Pin",
 					164315030799313
 					,[
 					[
 						4,
-						27
+						26
 					]
 ,					[
 						3,
@@ -38630,7 +40498,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetFontSize,
 					null,
 					7499171510183294
@@ -38645,7 +40513,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetWidth,
 					null,
 					3822500667856739
@@ -38660,7 +40528,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetFontColor,
 					null,
 					6528559629887517
@@ -38689,7 +40557,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetText,
 					null,
 					2071142094441508
@@ -38719,7 +40587,7 @@ false,false,3997661614259204
 							4,
 							[
 								20,
-								27,
+								26,
 								cr.plugins_.Sprite.prototype.exps.X,
 								false,
 								null
@@ -38748,7 +40616,7 @@ false,false,3997661614259204
 							4,
 							[
 								20,
-								27,
+								26,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -39030,20 +40898,20 @@ false,false,3997661614259204
 				],
 				[
 				[
-					36,
+					35,
 					cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 					null,
 					3505390929750868
 					,[
 					[
 						4,
-						32
+						31
 					]
 ,					[
 						0,
 						[
 							20,
-							29,
+							28,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -39062,7 +40930,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetText,
 					null,
 					690227646859138
@@ -39170,20 +41038,20 @@ false,false,3997661614259204
 				],
 				[
 				[
-					36,
+					35,
 					cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 					null,
 					2342175016779038
 					,[
 					[
 						4,
-						32
+						31
 					]
 ,					[
 						0,
 						[
 							20,
-							29,
+							28,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -39202,7 +41070,7 @@ false,false,3997661614259204
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetText,
 					null,
 					6598630312665167
@@ -39857,7 +41725,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						40,
+						38,
 						cr.plugins_.Rex_Container.prototype.acts.ContainerDestroy,
 						null,
 						8944414977881624
@@ -39870,7 +41738,7 @@ false,false,3997661614259204
 						,[
 						[
 							4,
-							40
+							38
 						]
 ,						[
 							5,
@@ -39896,20 +41764,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						8584310856368028
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -39928,7 +41796,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetVisible,
 						null,
 						6724839909456161
@@ -39940,20 +41808,20 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						36,
+						35,
 						cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 						null,
 						7856684009028944
 						,[
 						[
 							4,
-							32
+							31
 						]
 ,						[
 							0,
 							[
 								20,
-								29,
+								28,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -39972,7 +41840,7 @@ false,false,3997661614259204
 						]
 					]
 ,					[
-						32,
+						31,
 						cr.plugins_.Text.prototype.acts.SetVisible,
 						null,
 						5599372856835718
@@ -40077,7 +41945,7 @@ false,false,3997661614259204
 						],
 						[
 						[
-							16,
+							15,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							9984448429977015
@@ -40089,7 +41957,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							17,
+							16,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							1430395299660993
@@ -40101,7 +41969,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							15,
+							14,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							6761291238142486
@@ -40113,7 +41981,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							14,
+							13,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							9627455418994701
@@ -40125,7 +41993,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							20,
+							19,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							5552050517045245
@@ -40137,7 +42005,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							16,
+							15,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							7848469660483352
@@ -40163,7 +42031,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							17,
+							16,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							761294245481383
@@ -40189,7 +42057,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							15,
+							14,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							9163291251795813
@@ -40215,7 +42083,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							14,
+							13,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							2964052984711353
@@ -40241,7 +42109,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetVisible,
 							null,
 							2148887094046532
@@ -40296,7 +42164,7 @@ false,false,3997661614259204
 						],
 						[
 						[
-							18,
+							17,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							9952984335299512
@@ -40308,7 +42176,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							19,
+							18,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							502527944961452
@@ -40320,7 +42188,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							18,
+							17,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							8032517732790994
@@ -40346,7 +42214,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							19,
+							18,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							8001739837242881
@@ -40436,7 +42304,7 @@ false,false,3997661614259204
 						],
 						[
 						[
-							22,
+							21,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							6591110916040564
@@ -40448,7 +42316,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							22,
+							21,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							589443774421642
@@ -40538,7 +42406,7 @@ false,false,3997661614259204
 						],
 						[
 						[
-							21,
+							20,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							6994795187178648
@@ -40550,7 +42418,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							21,
+							20,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							6190316931967731
@@ -40613,20 +42481,20 @@ false,false,3997661614259204
 						],
 						[
 						[
-							36,
+							35,
 							cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 							null,
 							8562644374804192
 							,[
 							[
 								4,
-								32
+								31
 							]
 ,							[
 								0,
 								[
 									20,
-									29,
+									28,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -40645,7 +42513,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetY,
 							null,
 							6216054881334766
@@ -40656,7 +42524,7 @@ false,false,3997661614259204
 									5,
 									[
 										20,
-										23,
+										22,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -40670,7 +42538,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetVisible,
 							null,
 							1423199211412782
@@ -40682,7 +42550,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							23,
+							22,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							2068707760105912
@@ -40694,7 +42562,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							23,
+							22,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							7507978259484079
@@ -40720,7 +42588,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							24,
+							23,
 							cr.plugins_.Sprite.prototype.acts.SetVisible,
 							null,
 							4956862235165718
@@ -40732,7 +42600,7 @@ false,false,3997661614259204
 							]
 						]
 ,						[
-							24,
+							23,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							3072218760273958
@@ -40803,7 +42671,7 @@ false,false,3997661614259204
 				7138019173484814,
 				[
 				[
-					42,
+					40,
 					cr.plugins_.Rex_Container.prototype.cnds.OnDestroyed,
 					null,
 					1,
@@ -40822,7 +42690,7 @@ false,false,3997661614259204
 					,[
 					[
 						4,
-						42
+						40
 					]
 ,					[
 						5,
@@ -41054,115 +42922,115 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				54,
+				51,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				6416244466130009
 			]
 ,			[
-				48,
+				46,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				1347451837847061
 			]
 ,			[
-				51,
+				48,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				8129660955718398
 			]
 ,			[
-				52,
+				49,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				5107965357461741
 			]
 ,			[
-				53,
+				50,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				3975485157256293
 			]
 ,			[
-				50,
+				47,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				8740526342145102
 			]
 ,			[
-				58,
+				55,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				3926006402391943
 			]
 ,			[
-				57,
+				54,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				4668661610331621
 			]
 ,			[
-				56,
+				53,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				6878587088015465
 			]
 ,			[
-				70,
+				67,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				6476421668941757
 			]
 ,			[
-				12,
+				11,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				502114981843785
 			]
 ,			[
-				44,
+				42,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				3258068935481218
 			]
 ,			[
-				46,
+				44,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				3983233541102389
 			]
 ,			[
-				59,
+				56,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				6907383770185508
 			]
 ,			[
-				60,
+				57,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				7284081741272641
 			]
 ,			[
-				55,
+				52,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				9182139446476151
 			]
 ,			[
-				45,
+				43,
 				cr.plugins_.Rex_Container.prototype.acts.Destroy,
 				null,
 				2376239121568449
 			]
 ,			[
-				61,
+				58,
 				cr.plugins_.Rex_Container.prototype.acts.Destroy,
 				null,
 				5439819951532558
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4847912851450928
@@ -41184,7 +43052,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1917381039008202
@@ -41206,7 +43074,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3918765872162889
@@ -41228,7 +43096,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1368323840752824
@@ -41250,7 +43118,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				786409230450181
@@ -41272,7 +43140,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1262276298147968
@@ -41294,7 +43162,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				8512817442821127
@@ -41316,7 +43184,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4563848569979351
@@ -41338,7 +43206,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3242028537147067
@@ -41360,7 +43228,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4082853399948222
@@ -41382,7 +43250,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4293270265657428
@@ -41404,7 +43272,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9595855403848159
@@ -41426,7 +43294,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7077077168340523
@@ -41448,7 +43316,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9003090377175104
@@ -41470,7 +43338,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9357311413999254
@@ -41492,7 +43360,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4819070163530299
@@ -41514,7 +43382,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				32990378522971
@@ -41536,7 +43404,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5091280780707878
@@ -41558,7 +43426,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6229044235188154
@@ -41580,7 +43448,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				983476828785463
@@ -41602,7 +43470,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9801789527970223
@@ -41624,7 +43492,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7372618826134214
@@ -41646,7 +43514,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7666209480019171
@@ -41668,7 +43536,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2003399271660241
@@ -41690,7 +43558,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4051611364934287
@@ -41712,7 +43580,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1894824243217964
@@ -41734,7 +43602,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9114778239489889
@@ -41756,7 +43624,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4011409267843874
@@ -41778,7 +43646,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5140135957094114
@@ -41800,7 +43668,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1560831664308215
@@ -41822,7 +43690,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2035146229659167
@@ -41844,7 +43712,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				8759228870902403
@@ -41866,7 +43734,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7254105626486962
@@ -41888,7 +43756,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4008842121553478
@@ -41910,7 +43778,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9880816076847523
@@ -41932,7 +43800,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9404413862939871
@@ -41954,7 +43822,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9030639850754556
@@ -41976,7 +43844,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2785998688319936
@@ -41998,7 +43866,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3363653281602349
@@ -42020,7 +43888,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				8440680756303251
@@ -42042,7 +43910,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				951249016182177
@@ -42064,7 +43932,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2781235563614942
@@ -42086,7 +43954,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4659870646204105
@@ -42108,7 +43976,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3467874287556541
@@ -42130,7 +43998,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6525622290984885
@@ -42152,7 +44020,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3762518239570624
@@ -42174,7 +44042,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7420324471273356
@@ -42196,7 +44064,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6073565755127654
@@ -42218,7 +44086,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3243828274116481
@@ -42240,7 +44108,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3647379970623584
@@ -42262,7 +44130,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4118273509202582
@@ -42284,7 +44152,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6625132172499428
@@ -42306,7 +44174,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9069862904863951
@@ -42328,7 +44196,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				8567379013352857
@@ -42350,7 +44218,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1137377491589851
@@ -42372,7 +44240,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5675969951913598
@@ -42394,7 +44262,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5191043164510056
@@ -42416,7 +44284,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5886087453614351
@@ -42438,7 +44306,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7443925555828662
@@ -42460,7 +44328,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				355542829814896
@@ -42482,7 +44350,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4380596841760198
@@ -42504,7 +44372,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1996025319886811
@@ -42526,7 +44394,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4797069425585477
@@ -42548,7 +44416,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5770231174545765
@@ -42570,7 +44438,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				8541352741612894
@@ -42592,7 +44460,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1254853794821029
@@ -42614,7 +44482,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				350577864987737
@@ -42636,7 +44504,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5367979437698157
@@ -42658,7 +44526,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3630002353564007
@@ -42680,7 +44548,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1849557916399018
@@ -42702,7 +44570,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7420881039005265
@@ -42724,7 +44592,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4467591850143445
@@ -42746,7 +44614,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				66,
+				63,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7849326411003725
@@ -42768,7 +44636,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				64,
+				61,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2576997533263552
@@ -42790,7 +44658,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7732796414186382
@@ -42812,7 +44680,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1004857409551385
@@ -42834,7 +44702,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3465165205056225
@@ -42856,7 +44724,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4321748810144705
@@ -42878,7 +44746,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				28,
+				27,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1536762932211576
@@ -42900,7 +44768,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2356711987388458
@@ -42922,7 +44790,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3549771478843936
@@ -42944,7 +44812,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7617729147838526
@@ -42966,7 +44834,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9148620052690514
@@ -42988,7 +44856,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2283394569113482
@@ -43010,7 +44878,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5207016527220644
@@ -43032,7 +44900,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4189917877139183
@@ -43054,7 +44922,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				8838082826658787
@@ -43076,7 +44944,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6589695934223038
@@ -43098,7 +44966,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2711284015689343
@@ -43120,7 +44988,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9374105519344123
@@ -43142,7 +45010,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5611674793149454
@@ -43164,7 +45032,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4871089714340521
@@ -43186,7 +45054,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9972928408704227
@@ -43208,7 +45076,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2279734621810482
@@ -43230,7 +45098,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1480772397216891
@@ -43252,7 +45120,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3762416758435326
@@ -43274,7 +45142,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6680534912213329
@@ -43296,7 +45164,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6541517620382285
@@ -43318,7 +45186,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5788792191014182
@@ -43340,7 +45208,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7117817970786948
@@ -43362,7 +45230,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1462745846754008
@@ -43384,7 +45252,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2551310944404756
@@ -43406,7 +45274,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				586906778024933
@@ -43428,7 +45296,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				3425053420434255
@@ -43450,7 +45318,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7751223957678562
@@ -43472,7 +45340,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				8347067699393886
@@ -43494,7 +45362,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2645778469977127
@@ -43516,7 +45384,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9959824114296023
@@ -43538,7 +45406,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5744546089178555
@@ -43560,7 +45428,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				5920671689970469
@@ -43582,7 +45450,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1803489251185965
@@ -43604,7 +45472,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				737907835387021
@@ -43626,7 +45494,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2102599557317162
@@ -43648,7 +45516,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				2563396975664603
@@ -43670,7 +45538,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				6142455870193237
@@ -43692,7 +45560,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				69,
+				66,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				7279598144429106
@@ -43714,7 +45582,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				68,
+				65,
 				cr.plugins_.Dictionary.prototype.acts.AddKey,
 				null,
 				9580259972756681
@@ -43736,7 +45604,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				68,
+				65,
 				cr.plugins_.Dictionary.prototype.acts.AddKey,
 				null,
 				4975706765542103
@@ -43765,7 +45633,7 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					41
+					39
 				]
 ,				[
 					5,
@@ -43798,7 +45666,7 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					62
+					59
 				]
 ,				[
 					5,
@@ -43831,7 +45699,7 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					45
+					43
 				]
 ,				[
 					5,
@@ -43856,6 +45724,58 @@ false,false,1691237419979803
 				]
 				]
 			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.CreateObject,
+				null,
+				9009104015680855
+				,[
+				[
+					4,
+					58
+				]
+,				[
+					5,
+					[
+						0,
+						1
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+				]
+			]
+,			[
+				-1,
+				cr.system_object.prototype.acts.SetVar,
+				null,
+				4547106997236479
+				,[
+				[
+					11,
+					"chip"
+				]
+,				[
+					7,
+					[
+						0,
+						1
+					]
+				]
+				]
+			]
 			]
 		]
 ,		[
@@ -43865,7 +45785,7 @@ false,false,1691237419979803
 			7768324758509932,
 			[
 			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -43896,14 +45816,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				5555551358567245
 				,[
 				[
 					4,
-					12
+					11
 				]
 ,				[
 					0,
@@ -43929,14 +45849,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				3951471651670742
 				,[
 				[
 					4,
-					39
+					37
 				]
 ,				[
 					0,
@@ -43962,7 +45882,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				39,
+				37,
 				cr.plugins_.Sprite.prototype.acts.SetWidth,
 				null,
 				5974222270942428
@@ -43977,14 +45897,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				3265913802769811
 				,[
 				[
 					4,
-					32
+					31
 				]
 ,				[
 					0,
@@ -43992,7 +45912,7 @@ false,false,1691237419979803
 						5,
 						[
 							20,
-							39,
+							37,
 							cr.plugins_.Sprite.prototype.exps.X,
 							false,
 							null
@@ -44001,7 +45921,7 @@ false,false,1691237419979803
 							7,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Width,
 								false,
 								null
@@ -44021,7 +45941,7 @@ false,false,1691237419979803
 							5,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -44030,7 +45950,7 @@ false,false,1691237419979803
 								7,
 								[
 									20,
-									39,
+									37,
 									cr.plugins_.Sprite.prototype.exps.Height,
 									false,
 									null
@@ -44057,7 +45977,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				29,
+				28,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				4616982942503966
@@ -44073,7 +45993,7 @@ false,false,1691237419979803
 					7,
 					[
 						20,
-						32,
+						31,
 						cr.plugins_.Text.prototype.exps.UID,
 						false,
 						null
@@ -44082,7 +46002,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetSize,
 				null,
 				3948558902170507
@@ -44091,7 +46011,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Width,
 						false,
 						null
@@ -44101,7 +46021,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Height,
 						false,
 						null
@@ -44110,7 +46030,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetFontSize,
 				null,
 				8516751634101488
@@ -44125,7 +46045,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				568758038654325
@@ -44147,14 +46067,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				6461875376256018
 				,[
 				[
 					4,
-					39
+					37
 				]
 ,				[
 					0,
@@ -44174,13 +46094,13 @@ false,false,1691237419979803
 					7,
 					[
 						0,
-						0
+						3
 					]
 				]
 				]
 			]
 ,			[
-				39,
+				37,
 				cr.plugins_.Sprite.prototype.acts.SetWidth,
 				null,
 				948828561346498
@@ -44195,14 +46115,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				4694357572562304
 				,[
 				[
 					4,
-					32
+					31
 				]
 ,				[
 					0,
@@ -44210,7 +46130,7 @@ false,false,1691237419979803
 						5,
 						[
 							20,
-							39,
+							37,
 							cr.plugins_.Sprite.prototype.exps.X,
 							false,
 							null
@@ -44219,7 +46139,7 @@ false,false,1691237419979803
 							7,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Width,
 								false,
 								null
@@ -44239,7 +46159,7 @@ false,false,1691237419979803
 							5,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -44248,7 +46168,7 @@ false,false,1691237419979803
 								7,
 								[
 									20,
-									39,
+									37,
 									cr.plugins_.Sprite.prototype.exps.Height,
 									false,
 									null
@@ -44275,7 +46195,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				29,
+				28,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1615948986008964
@@ -44291,7 +46211,7 @@ false,false,1691237419979803
 					7,
 					[
 						20,
-						32,
+						31,
 						cr.plugins_.Text.prototype.exps.UID,
 						false,
 						null
@@ -44300,7 +46220,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetSize,
 				null,
 				8755150562618584
@@ -44309,7 +46229,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Width,
 						false,
 						null
@@ -44319,7 +46239,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Height,
 						false,
 						null
@@ -44328,7 +46248,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetFontSize,
 				null,
 				68916886174602
@@ -44343,7 +46263,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				8031980619239656
@@ -44365,14 +46285,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				9777354454682601
 				,[
 				[
 					4,
-					39
+					37
 				]
 ,				[
 					0,
@@ -44392,13 +46312,13 @@ false,false,1691237419979803
 					7,
 					[
 						0,
-						0
+						3
 					]
 				]
 				]
 			]
 ,			[
-				39,
+				37,
 				cr.plugins_.Sprite.prototype.acts.SetWidth,
 				null,
 				398173420466813
@@ -44413,14 +46333,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				41,
+				39,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				6109012850748389
 				,[
 				[
 					4,
-					32
+					31
 				]
 ,				[
 					0,
@@ -44428,7 +46348,7 @@ false,false,1691237419979803
 						5,
 						[
 							20,
-							39,
+							37,
 							cr.plugins_.Sprite.prototype.exps.X,
 							false,
 							null
@@ -44437,7 +46357,7 @@ false,false,1691237419979803
 							7,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Width,
 								false,
 								null
@@ -44457,7 +46377,7 @@ false,false,1691237419979803
 							5,
 							[
 								20,
-								39,
+								37,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -44466,7 +46386,7 @@ false,false,1691237419979803
 								7,
 								[
 									20,
-									39,
+									37,
 									cr.plugins_.Sprite.prototype.exps.Height,
 									false,
 									null
@@ -44493,7 +46413,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				29,
+				28,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				9817571566629248
@@ -44509,7 +46429,7 @@ false,false,1691237419979803
 					7,
 					[
 						20,
-						32,
+						31,
 						cr.plugins_.Text.prototype.exps.UID,
 						false,
 						null
@@ -44518,7 +46438,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetSize,
 				null,
 				4032047618627741
@@ -44527,7 +46447,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Width,
 						false,
 						null
@@ -44537,7 +46457,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						39,
+						37,
 						cr.plugins_.Sprite.prototype.exps.Height,
 						false,
 						null
@@ -44546,7 +46466,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetFontSize,
 				null,
 				1840831513091411
@@ -44561,7 +46481,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				8235795817940086
@@ -44584,7 +46504,7 @@ false,false,1691237419979803
 			3750995712188391,
 			[
 			[
-				62,
+				59,
 				cr.plugins_.Rex_Container.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -44596,14 +46516,14 @@ false,false,1691237419979803
 			],
 			[
 			[
-				62,
+				59,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				9483775441736676
 				,[
 				[
 					4,
-					55
+					52
 				]
 ,				[
 					0,
@@ -44629,14 +46549,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				55,
+				52,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
 				7158027929060325
 				,[
 				[
 					4,
-					45
+					43
 				]
 ,				[
 					3,
@@ -44645,14 +46565,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				62,
+				59,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				5352867487105955
 				,[
 				[
 					4,
-					48
+					46
 				]
 ,				[
 					0,
@@ -44678,14 +46598,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				48,
+				46,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
 				1994376931285128
 				,[
 				[
 					4,
-					45
+					43
 				]
 ,				[
 					3,
@@ -44694,10 +46614,244 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				62,
+				59,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				2572653752121115
+				,[
+				[
+					4,
+					47
+				]
+,				[
+					0,
+					[
+						0,
+						120
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						457
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						3
+					]
+				]
+				]
+			]
+,			[
+				47,
+				cr.behaviors.Pin.prototype.acts.Pin,
+				"Pin",
+				6616464594287981
+				,[
+				[
+					4,
+					43
+				]
+,				[
+					3,
+					0
+				]
+				]
+			]
+,			[
+				59,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				9662789012071159
+				,[
+				[
+					4,
+					48
+				]
+,				[
+					0,
+					[
+						0,
+						200
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						457
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						3
+					]
+				]
+				]
+			]
+,			[
+				48,
+				cr.behaviors.Pin.prototype.acts.Pin,
+				"Pin",
+				6250388104068397
+				,[
+				[
+					4,
+					43
+				]
+,				[
+					3,
+					0
+				]
+				]
+			]
+,			[
+				48,
+				cr.plugins_.Sprite.prototype.acts.SetAnim,
+				null,
+				1927554535096972
+				,[
+				[
+					1,
+					[
+						2,
+						"s1"
+					]
+				]
+,				[
+					3,
+					1
+				]
+				]
+			]
+,			[
+				59,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				9874289038774854
+				,[
+				[
+					4,
+					49
+				]
+,				[
+					0,
+					[
+						0,
+						280
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						457
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						3
+					]
+				]
+				]
+			]
+,			[
+				49,
+				cr.behaviors.Pin.prototype.acts.Pin,
+				"Pin",
+				543635501685668
+				,[
+				[
+					4,
+					43
+				]
+,				[
+					3,
+					0
+				]
+				]
+			]
+,			[
+				49,
+				cr.plugins_.Sprite.prototype.acts.SetAnim,
+				null,
+				8400014312960387
+				,[
+				[
+					1,
+					[
+						2,
+						"s1"
+					]
+				]
+,				[
+					3,
+					1
+				]
+				]
+			]
+,			[
+				59,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				376968565761166
+				,[
+				[
+					4,
+					57
+				]
+,				[
+					0,
+					[
+						0,
+						40
+					]
+				]
+,				[
+					0,
+					[
+						0,
+						457
+					]
+				]
+,				[
+					7,
+					[
+						0,
+						3
+					]
+				]
+				]
+			]
+,			[
+				57,
+				cr.behaviors.Pin.prototype.acts.Pin,
+				"Pin",
+				4058119434549305
+				,[
+				[
+					4,
+					43
+				]
+,				[
+					3,
+					0
+				]
+				]
+			]
+,			[
+				59,
+				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
+				null,
+				1295514810203709
 				,[
 				[
 					4,
@@ -44727,14 +46881,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				50,
+				47,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
-				6616464594287981
+				6072484812745894
 				,[
 				[
 					4,
-					45
+					43
 				]
 ,				[
 					3,
@@ -44743,10 +46897,10 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				62,
+				59,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
-				9662789012071159
+				5827509031292079
 				,[
 				[
 					4,
@@ -44776,248 +46930,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				51,
-				cr.behaviors.Pin.prototype.acts.Pin,
-				"Pin",
-				6250388104068397
-				,[
-				[
-					4,
-					45
-				]
-,				[
-					3,
-					0
-				]
-				]
-			]
-,			[
-				51,
-				cr.plugins_.Sprite.prototype.acts.SetAnim,
-				null,
-				1927554535096972
-				,[
-				[
-					1,
-					[
-						2,
-						"s1"
-					]
-				]
-,				[
-					3,
-					1
-				]
-				]
-			]
-,			[
-				62,
-				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
-				null,
-				9874289038774854
-				,[
-				[
-					4,
-					52
-				]
-,				[
-					0,
-					[
-						0,
-						280
-					]
-				]
-,				[
-					0,
-					[
-						0,
-						457
-					]
-				]
-,				[
-					7,
-					[
-						0,
-						3
-					]
-				]
-				]
-			]
-,			[
-				52,
-				cr.behaviors.Pin.prototype.acts.Pin,
-				"Pin",
-				543635501685668
-				,[
-				[
-					4,
-					45
-				]
-,				[
-					3,
-					0
-				]
-				]
-			]
-,			[
-				52,
-				cr.plugins_.Sprite.prototype.acts.SetAnim,
-				null,
-				8400014312960387
-				,[
-				[
-					1,
-					[
-						2,
-						"s1"
-					]
-				]
-,				[
-					3,
-					1
-				]
-				]
-			]
-,			[
-				62,
-				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
-				null,
-				376968565761166
-				,[
-				[
-					4,
-					60
-				]
-,				[
-					0,
-					[
-						0,
-						40
-					]
-				]
-,				[
-					0,
-					[
-						0,
-						457
-					]
-				]
-,				[
-					7,
-					[
-						0,
-						3
-					]
-				]
-				]
-			]
-,			[
-				60,
-				cr.behaviors.Pin.prototype.acts.Pin,
-				"Pin",
-				4058119434549305
-				,[
-				[
-					4,
-					45
-				]
-,				[
-					3,
-					0
-				]
-				]
-			]
-,			[
-				62,
-				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
-				null,
-				1295514810203709
-				,[
-				[
-					4,
-					53
-				]
-,				[
-					0,
-					[
-						0,
-						120
-					]
-				]
-,				[
-					0,
-					[
-						0,
-						457
-					]
-				]
-,				[
-					7,
-					[
-						0,
-						3
-					]
-				]
-				]
-			]
-,			[
-				50,
-				cr.behaviors.Pin.prototype.acts.Pin,
-				"Pin",
-				6072484812745894
-				,[
-				[
-					4,
-					45
-				]
-,				[
-					3,
-					0
-				]
-				]
-			]
-,			[
-				62,
-				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
-				null,
-				5827509031292079
-				,[
-				[
-					4,
-					54
-				]
-,				[
-					0,
-					[
-						0,
-						200
-					]
-				]
-,				[
-					0,
-					[
-						0,
-						457
-					]
-				]
-,				[
-					7,
-					[
-						0,
-						3
-					]
-				]
-				]
-			]
-,			[
-				51,
+				48,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
 				4024348469773605
 				,[
 				[
 					4,
-					45
+					43
 				]
 ,				[
 					3,
@@ -45034,7 +46954,7 @@ false,false,1691237419979803
 			605480340275425,
 			[
 			[
-				45,
+				43,
 				cr.plugins_.Rex_Container.prototype.cnds.OnCreated,
 				null,
 				1,
@@ -45046,14 +46966,14 @@ false,false,1691237419979803
 			],
 			[
 			[
-				45,
+				43,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				9979544510169891
 				,[
 				[
 					4,
-					58
+					55
 				]
 ,				[
 					0,
@@ -45079,14 +46999,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				58,
+				55,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
 				1731192123214538
 				,[
 				[
 					4,
-					45
+					43
 				]
 ,				[
 					3,
@@ -45095,14 +47015,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				45,
+				43,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				2588349586482227
 				,[
 				[
 					4,
-					57
+					54
 				]
 ,				[
 					0,
@@ -45128,14 +47048,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				57,
+				54,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
 				126751834638874
 				,[
 				[
 					4,
-					45
+					43
 				]
 ,				[
 					3,
@@ -45144,14 +47064,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				45,
+				43,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				5297041215976518
 				,[
 				[
 					4,
-					44
+					42
 				]
 ,				[
 					0,
@@ -45177,14 +47097,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				44,
+				42,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
 				7438777987154454
 				,[
 				[
 					4,
-					45
+					43
 				]
 ,				[
 					3,
@@ -45193,14 +47113,14 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				45,
+				43,
 				cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 				null,
 				3689098346317989
 				,[
 				[
 					4,
-					56
+					53
 				]
 ,				[
 					0,
@@ -45226,7 +47146,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				57,
+				54,
 				cr.behaviors.Rex_Rotate.prototype.acts.SetActivated,
 				"Rotate",
 				8333735962810478
@@ -45238,7 +47158,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				44,
+				42,
 				cr.behaviors.Rex_Rotate.prototype.acts.SetActivated,
 				"Rotate",
 				5850365123273661
@@ -45250,7 +47170,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				44,
+				42,
 				cr.behaviors.Rex_Rotate.prototype.acts.SetDirection,
 				"Rotate",
 				5439781274150486
@@ -45262,7 +47182,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				56,
+				53,
 				cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 				null,
 				222317463173843
@@ -45281,7 +47201,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				56,
+				53,
 				cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 				null,
 				1241817774618683
@@ -45389,7 +47309,7 @@ false,false,1691237419979803
 							7,
 							[
 								20,
-								56,
+								53,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -45411,7 +47331,7 @@ false,false,1691237419979803
 					],
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetY,
 						null,
 						5866663737358518
@@ -45447,7 +47367,7 @@ false,false,1691237419979803
 							7,
 							[
 								20,
-								56,
+								53,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -45480,7 +47400,7 @@ false,false,1691237419979803
 							7,
 							[
 								20,
-								56,
+								53,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -45502,7 +47422,7 @@ false,false,1691237419979803
 					],
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetY,
 						null,
 						2608335094493469
@@ -45618,7 +47538,7 @@ false,false,1691237419979803
 							7,
 							[
 								22,
-								57,
+								54,
 								"Rotate",
 								cr.behaviors.Rex_Rotate.prototype.exps.Speed,
 								false,
@@ -45652,7 +47572,7 @@ false,false,1691237419979803
 							7,
 							[
 								20,
-								44,
+								42,
 								cr.plugins_.Sprite.prototype.exps.AnimationName,
 								true,
 								null
@@ -45674,48 +47594,22 @@ false,false,1691237419979803
 					],
 					[
 					[
-						0,
-						cr.plugins_.Function.prototype.acts.CallFunction,
+						1,
+						cr.plugins_.Audio.prototype.acts.Stop,
 						null,
-						9613056246716872
+						3896139004266437
 						,[
 						[
 							1,
 							[
 								2,
-								"playSound"
+								"s"
 							]
-						]
-,						[
-							13,
-															[
-									7,
-									[
-										0,
-										12
-									]
-								]
-,
-								[
-									7,
-									[
-										1,
-										15.7
-									]
-								]
-,
-								[
-									7,
-									[
-										0,
-										1
-									]
-								]
 						]
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						716983157140919
@@ -45734,7 +47628,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
 						null,
 						6276646739113384
@@ -45749,7 +47643,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.plugins_.Sprite.prototype.acts.SetAnimSpeed,
 						null,
 						1641130243192813
@@ -45764,7 +47658,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.plugins_.Sprite.prototype.acts.StartAnim,
 						null,
 						4027366679790552
@@ -45772,6 +47666,36 @@ false,false,1691237419979803
 						[
 							3,
 							0
+						]
+						]
+					]
+,					[
+						1,
+						cr.plugins_.Audio.prototype.acts.Play,
+						null,
+						3580610225969357
+						,[
+						[
+							2,
+							["t2",true]
+						]
+,						[
+							3,
+							1
+						]
+,						[
+							0,
+							[
+								0,
+								0
+							]
+						]
+,						[
+							1,
+							[
+								2,
+								"s"
+							]
 						]
 						]
 					]
@@ -45797,7 +47721,7 @@ false,false,1691237419979803
 							0,
 							[
 								20,
-								57,
+								54,
 								cr.plugins_.Sprite.prototype.exps.Angle,
 								false,
 								null
@@ -45834,7 +47758,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						57,
+						54,
 						cr.behaviors.Rex_Rotate.prototype.cnds.CompareSpeed,
 						"Rotate",
 						0,
@@ -45879,7 +47803,7 @@ false,false,1691237419979803
 					]
 ,					[
 						1,
-						cr.plugins_.Audio.prototype.acts.SetPaused,
+						cr.plugins_.Audio.prototype.acts.Stop,
 						null,
 						2792138330914122
 						,[
@@ -45890,14 +47814,10 @@ false,false,1691237419979803
 								"s"
 							]
 						]
-,						[
-							3,
-							0
-						]
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetDirection,
 						"Rotate",
 						2559828281741668
@@ -45909,7 +47829,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						57,
+						54,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
 						"Rotate",
 						2274585251348822
@@ -45924,7 +47844,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
 						"Rotate",
 						897902500920973
@@ -45939,7 +47859,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.plugins_.Sprite.prototype.acts.SetAnimSpeed,
 						null,
 						2232685986082732
@@ -45954,13 +47874,13 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.plugins_.Sprite.prototype.acts.StopAnim,
 						null,
 						1715173435016979
 					]
 ,					[
-						44,
+						42,
 						cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
 						null,
 						5183560214545017
@@ -45975,7 +47895,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						57,
+						54,
 						cr.plugins_.Sprite.prototype.acts.SetAngle,
 						null,
 						6395061409808638
@@ -45990,7 +47910,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.plugins_.Sprite.prototype.acts.SetAngle,
 						null,
 						577146511522122
@@ -45999,7 +47919,7 @@ false,false,1691237419979803
 							0,
 							[
 								20,
-								64,
+								61,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -46009,11 +47929,25 @@ false,false,1691237419979803
 									cr.system_object.prototype.exps["int"]
 									,[
 [
-										20,
-										34,
-										cr.plugins_.AJAX.prototype.exps.LastData,
-										true,
-										null
+										19,
+										cr.system_object.prototype.exps.tokenat
+										,[
+[
+											20,
+											33,
+											cr.plugins_.AJAX.prototype.exps.LastData,
+											true,
+											null
+										]
+,[
+											0,
+											0
+										]
+,[
+											2,
+											"~"
+										]
+										]
 									]
 									]
 								]
@@ -46023,7 +47957,83 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						71,
+						1,
+						cr.plugins_.Audio.prototype.acts.PlayByName,
+						null,
+						6385830561264542
+						,[
+						[
+							3,
+							1
+						]
+,						[
+							1,
+							[
+								19,
+								cr.system_object.prototype.exps.tokenat
+								,[
+[
+									20,
+									33,
+									cr.plugins_.AJAX.prototype.exps.LastData,
+									true,
+									null
+								]
+,[
+									0,
+									0
+								]
+,[
+									2,
+									"~"
+								]
+								]
+							]
+						]
+,						[
+							3,
+							0
+						]
+,						[
+							0,
+							[
+								0,
+								0
+							]
+						]
+,						[
+							1,
+							[
+								2,
+								"s"
+							]
+						]
+						]
+					]
+,					[
+						-1,
+						cr.system_object.prototype.acts.SetVar,
+						null,
+						3399843692886941
+						,[
+						[
+							11,
+							"ang2"
+						]
+,						[
+							7,
+							[
+								20,
+								42,
+								cr.plugins_.Sprite.prototype.exps.Angle,
+								false,
+								null
+							]
+						]
+						]
+					]
+,					[
+						68,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						8451719281226689
@@ -46046,7 +48056,7 @@ false,false,1691237419979803
 										,[
 [
 											20,
-											34,
+											33,
 											cr.plugins_.AJAX.prototype.exps.LastData,
 											true,
 											null
@@ -46095,35 +48105,13 @@ false,false,1691237419979803
 					]
 ,					[
 						-1,
-						cr.system_object.prototype.acts.SetVar,
-						null,
-						3399843692886941
-						,[
-						[
-							11,
-							"ang2"
-						]
-,						[
-							7,
-							[
-								20,
-								44,
-								cr.plugins_.Sprite.prototype.exps.Angle,
-								false,
-								null
-							]
-						]
-						]
-					]
-,					[
-						-1,
 						cr.system_object.prototype.acts.CreateObject,
 						null,
 						3147948139883893
 						,[
 						[
 							4,
-							70
+							67
 						]
 ,						[
 							5,
@@ -46156,7 +48144,7 @@ false,false,1691237419979803
 											,[
 [
 												20,
-												34,
+												33,
 												cr.plugins_.AJAX.prototype.exps.LastData,
 												true,
 												null
@@ -46206,7 +48194,7 @@ false,false,1691237419979803
 											,[
 [
 												20,
-												34,
+												33,
 												cr.plugins_.AJAX.prototype.exps.LastData,
 												true,
 												null
@@ -46250,7 +48238,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						70,
+						67,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						3479909351479887
@@ -46269,7 +48257,7 @@ false,false,1691237419979803
 									,[
 [
 										20,
-										34,
+										33,
 										cr.plugins_.AJAX.prototype.exps.LastData,
 										true,
 										null
@@ -46293,7 +48281,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						70,
+						67,
 						cr.behaviors.Rex_MoveTo.prototype.acts.SetTargetPos,
 						"MoveTo",
 						3117083512127115
@@ -46359,7 +48347,7 @@ false,false,1691237419979803
 										,[
 [
 											20,
-											34,
+											33,
 											cr.plugins_.AJAX.prototype.exps.LastData,
 											true,
 											null
@@ -46414,7 +48402,7 @@ false,false,1691237419979803
 										,[
 [
 											20,
-											34,
+											33,
 											cr.plugins_.AJAX.prototype.exps.LastData,
 											true,
 											null
@@ -46461,20 +48449,20 @@ false,false,1691237419979803
 							]
 						]
 ,						[
-							36,
+							35,
 							cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 							null,
 							5160983892568946
 							,[
 							[
 								4,
-								32
+								31
 							]
 ,							[
 								0,
 								[
 									20,
-									29,
+									28,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -46493,7 +48481,7 @@ false,false,1691237419979803
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetText,
 							null,
 							5178137615026106
@@ -46515,20 +48503,20 @@ false,false,1691237419979803
 							]
 						]
 ,						[
-							36,
+							35,
 							cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 							null,
 							862523736525596
 							,[
 							[
 								4,
-								32
+								31
 							]
 ,							[
 								0,
 								[
 									20,
-									29,
+									28,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -46547,7 +48535,7 @@ false,false,1691237419979803
 							]
 						]
 ,						[
-							32,
+							31,
 							cr.plugins_.Text.prototype.acts.SetText,
 							null,
 							4207525640541307
@@ -46568,26 +48556,51 @@ false,false,1691237419979803
 							]
 							]
 						]
-						]
-					]
-,					[
-						0,
-						null,
-						false,
-						958357121270166,
-						[
-						[
+,						[
 							-1,
-							cr.system_object.prototype.cnds.Else,
+							cr.system_object.prototype.acts.Wait,
 							null,
-							0,
-							false,
-							false,
-							false,
-							4452134431732495
+							3043956838364741
+							,[
+							[
+								0,
+								[
+									0,
+									2
+								]
+							]
+							]
 						]
-						],
-						[
+,						[
+							1,
+							cr.plugins_.Audio.prototype.acts.Play,
+							null,
+							4182127423405241
+							,[
+							[
+								2,
+								["pw",true]
+							]
+,							[
+								3,
+								0
+							]
+,							[
+								0,
+								[
+									0,
+									0
+								]
+							]
+,							[
+								1,
+								[
+									2,
+									"s"
+								]
+							]
+							]
+						]
 						]
 					]
 					]
@@ -46612,7 +48625,7 @@ false,false,1691237419979803
 							7,
 							[
 								22,
-								57,
+								54,
 								"Rotate",
 								cr.behaviors.Rex_Rotate.prototype.exps.Speed,
 								false,
@@ -46646,7 +48659,7 @@ false,false,1691237419979803
 							7,
 							[
 								22,
-								57,
+								54,
 								"Rotate",
 								cr.behaviors.Rex_Rotate.prototype.exps.Acceleration,
 								false,
@@ -46696,7 +48709,7 @@ false,false,1691237419979803
 					],
 					[
 					[
-						57,
+						54,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
 						"Rotate",
 						5706511996575958
@@ -46711,7 +48724,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
 						"Rotate",
 						5612063683585982
@@ -46763,7 +48776,7 @@ false,false,1691237419979803
 					],
 					[
 					[
-						57,
+						54,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetSpeed,
 						"Rotate",
 						9850994259655642
@@ -46778,7 +48791,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetSpeed,
 						"Rotate",
 						1093257784793883
@@ -46793,7 +48806,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						57,
+						54,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
 						"Rotate",
 						5331167516878739
@@ -46808,7 +48821,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						44,
+						42,
 						cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
 						"Rotate",
 						6849190971291219
@@ -46844,7 +48857,7 @@ false,false,1691237419979803
 							7,
 							[
 								22,
-								57,
+								54,
 								"Rotate",
 								cr.behaviors.Rex_Rotate.prototype.exps.Acceleration,
 								false,
@@ -46888,7 +48901,7 @@ false,false,1691237419979803
 								7,
 								[
 									22,
-									57,
+									54,
 									"Rotate",
 									cr.behaviors.Rex_Rotate.prototype.exps.Speed,
 									false,
@@ -46923,7 +48936,7 @@ false,false,1691237419979803
 											,[
 [
 												20,
-												57,
+												54,
 												cr.plugins_.Sprite.prototype.exps.Angle,
 												false,
 												null
@@ -46939,7 +48952,7 @@ false,false,1691237419979803
 						],
 						[
 						[
-							57,
+							54,
 							cr.behaviors.Rex_Rotate.prototype.acts.SetSpeed,
 							"Rotate",
 							725115499424954
@@ -46968,7 +48981,7 @@ false,false,1691237419979803
 											,[
 [
 												20,
-												57,
+												54,
 												cr.plugins_.Sprite.prototype.exps.Angle,
 												false,
 												null
@@ -46982,7 +48995,7 @@ false,false,1691237419979803
 							]
 						]
 ,						[
-							44,
+							42,
 							cr.behaviors.Rex_Rotate.prototype.acts.SetSpeed,
 							"Rotate",
 							9196027804366068
@@ -47011,7 +49024,7 @@ false,false,1691237419979803
 											,[
 [
 												20,
-												57,
+												54,
 												cr.plugins_.Sprite.prototype.exps.Angle,
 												false,
 												null
@@ -47045,7 +49058,7 @@ false,false,1691237419979803
 						],
 						[
 						[
-							57,
+							54,
 							cr.behaviors.Rex_Rotate.prototype.acts.SetSpeed,
 							"Rotate",
 							9986531837118208
@@ -47060,7 +49073,7 @@ false,false,1691237419979803
 							]
 						]
 ,						[
-							44,
+							42,
 							cr.behaviors.Rex_Rotate.prototype.acts.SetSpeed,
 							"Rotate",
 							1592841078048228
@@ -47100,7 +49113,7 @@ false,false,1691237419979803
 						7,
 						[
 							22,
-							57,
+							54,
 							"Rotate",
 							cr.behaviors.Rex_Rotate.prototype.exps.Acceleration,
 							false,
@@ -47134,7 +49147,7 @@ false,false,1691237419979803
 						7,
 						[
 							22,
-							57,
+							54,
 							"Rotate",
 							cr.behaviors.Rex_Rotate.prototype.exps.Speed,
 							false,
@@ -47184,7 +49197,7 @@ false,false,1691237419979803
 				],
 				[
 				[
-					57,
+					54,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetActivated,
 					"Rotate",
 					2793334640222194
@@ -47196,7 +49209,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetActivated,
 					"Rotate",
 					9666041713932823
@@ -47208,7 +49221,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					57,
+					54,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
 					"Rotate",
 					6967804440044148
@@ -47223,7 +49236,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
 					"Rotate",
 					4293860985129517
@@ -47267,6 +49280,36 @@ false,false,1691237419979803
 				],
 				[
 				[
+					1,
+					cr.plugins_.Audio.prototype.acts.Play,
+					null,
+					5605483687807259
+					,[
+					[
+						2,
+						["sp",true]
+					]
+,					[
+						3,
+						1
+					]
+,					[
+						0,
+						[
+							0,
+							0
+						]
+					]
+,					[
+						1,
+						[
+							2,
+							"s"
+						]
+					]
+					]
+				]
+,				[
 					-1,
 					cr.system_object.prototype.acts.SetVar,
 					null,
@@ -47305,7 +49348,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					59,
+					56,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					8043480653049575
@@ -47317,20 +49360,20 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					36,
+					35,
 					cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 					null,
 					572422853923085
 					,[
 					[
 						4,
-						32
+						31
 					]
 ,					[
 						0,
 						[
 							20,
-							29,
+							28,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -47349,7 +49392,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetText,
 					null,
 					7842588078577423
@@ -47364,22 +49407,10 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					49,
-					cr.plugins_.Text.prototype.acts.SetVisible,
-					null,
-					1528121077927678
-					,[
-					[
-						3,
-						1
-					]
-					]
-				]
-,				[
-					34,
+					33,
 					cr.plugins_.AJAX.prototype.acts.Request,
 					null,
-					7069657739283268
+					8941776410800228
 					,[
 					[
 						1,
@@ -47394,11 +49425,11 @@ false,false,1691237419979803
 							10,
 							[
 								2,
-								"http://109.86.74.208/roulette/game2.phpaction=game&jdata="
+								"http://localhost/roulette/game2.php?action=game&jdata="
 							]
 							,[
 								20,
-								72,
+								69,
 								cr.plugins_.Arr.prototype.exps.AsJSON,
 								true,
 								null
@@ -47408,7 +49439,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					78,
+					85,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					1622253405530312
@@ -47420,13 +49451,13 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					70,
+					67,
 					cr.plugins_.Sprite.prototype.acts.Destroy,
 					null,
 					3358614542750566
 				]
 ,				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.acts.SetY,
 					null,
 					781756393817146
@@ -47441,7 +49472,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					57,
+					54,
 					cr.plugins_.Sprite.prototype.acts.SetAngle,
 					null,
 					569952734510558
@@ -47456,7 +49487,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.plugins_.Sprite.prototype.acts.SetAngle,
 					null,
 					7220571307151615
@@ -47471,7 +49502,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					57,
+					54,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetSpeed,
 					"Rotate",
 					9593500176065907
@@ -47486,7 +49517,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					57,
+					54,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetActivated,
 					"Rotate",
 					2997791274932057
@@ -47498,7 +49529,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetSpeed,
 					"Rotate",
 					4118287117587709
@@ -47513,7 +49544,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetDirection,
 					"Rotate",
 					3866324333300747
@@ -47525,7 +49556,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.behaviors.Rex_Rotate.prototype.acts.SetActivated,
 					"Rotate",
 					9370134378673713
@@ -47537,7 +49568,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					5575512269893535
@@ -47556,7 +49587,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.plugins_.Sprite.prototype.acts.SetAnimFrame,
 					null,
 					8309580096360751
@@ -47571,7 +49602,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.plugins_.Sprite.prototype.acts.SetAnimSpeed,
 					null,
 					5743792517473075
@@ -47586,7 +49617,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					44,
+					42,
 					cr.plugins_.Sprite.prototype.acts.StartAnim,
 					null,
 					5805906728017712
@@ -47603,7 +49634,7 @@ false,false,1691237419979803
 				0,
 				null,
 				false,
-				2667063435789859,
+				511749862731156,
 				[
 				[
 					0,
@@ -47613,7 +49644,7 @@ false,false,1691237419979803
 					false,
 					false,
 					false,
-					7165411376407331
+					436788762685574
 					,[
 					[
 						1,
@@ -47627,10 +49658,10 @@ false,false,1691237419979803
 				],
 				[
 				[
-					49,
+					71,
 					cr.plugins_.Text.prototype.acts.Destroy,
 					null,
-					1822611832121942
+					3421220407231078
 				]
 				]
 				,[
@@ -47638,7 +49669,7 @@ false,false,1691237419979803
 					0,
 					null,
 					false,
-					9973113600308567,
+					3207705046683731,
 					[
 					[
 						-1,
@@ -47648,7 +49679,7 @@ false,false,1691237419979803
 						true,
 						false,
 						false,
-						6785825788686098
+						3718363784417825
 						,[
 						[
 							1,
@@ -47681,13 +49712,13 @@ false,false,1691237419979803
 						false,
 						false,
 						false,
-						4958239488203761
+						9801289654936699
 						,[
 						[
 							7,
 							[
 								20,
-								71,
+								68,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -47715,14 +49746,14 @@ false,false,1691237419979803
 					],
 					[
 					[
-						45,
+						43,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
-						6827301509515127
+						1278532972259324
 						,[
 						[
 							4,
-							49
+							71
 						]
 ,						[
 							0,
@@ -47762,10 +49793,10 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						49,
+						71,
 						cr.plugins_.Text.prototype.acts.SetText,
 						null,
-						795351991912997
+						9394535531483354
 						,[
 						[
 							7,
@@ -47777,7 +49808,7 @@ false,false,1691237419979803
 									,[
 [
 										20,
-										71,
+										68,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -47799,10 +49830,10 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						49,
+						71,
 						cr.plugins_.Text.prototype.acts.SetFontColor,
 						null,
-						3460821040773718
+						7850585198785146
 						,[
 						[
 							0,
@@ -47820,7 +49851,7 @@ false,false,1691237419979803
 										,[
 [
 											20,
-											69,
+											66,
 											cr.plugins_.Arr.prototype.exps.At,
 											false,
 											null
@@ -47833,7 +49864,7 @@ false,false,1691237419979803
 													5,
 													[
 														20,
-														71,
+														68,
 														cr.plugins_.Arr.prototype.exps.At,
 														false,
 														null
@@ -47875,7 +49906,7 @@ false,false,1691237419979803
 										,[
 [
 											20,
-											69,
+											66,
 											cr.plugins_.Arr.prototype.exps.At,
 											false,
 											null
@@ -47888,7 +49919,7 @@ false,false,1691237419979803
 													5,
 													[
 														20,
-														71,
+														68,
 														cr.plugins_.Arr.prototype.exps.At,
 														false,
 														null
@@ -47930,7 +49961,7 @@ false,false,1691237419979803
 										,[
 [
 											20,
-											69,
+											66,
 											cr.plugins_.Arr.prototype.exps.At,
 											false,
 											null
@@ -47943,7 +49974,7 @@ false,false,1691237419979803
 													5,
 													[
 														20,
-														71,
+														68,
 														cr.plugins_.Arr.prototype.exps.At,
 														false,
 														null
@@ -47988,11 +50019,154 @@ false,false,1691237419979803
 				0,
 				null,
 				false,
+				5176002771218186,
+				[
+				[
+					33,
+					cr.plugins_.AJAX.prototype.cnds.OnComplete,
+					null,
+					1,
+					false,
+					false,
+					false,
+					6226172101661371
+					,[
+					[
+						1,
+						[
+							2,
+							"spin"
+						]
+					]
+					]
+				]
+				],
+				[
+				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					4486228657936594
+					,[
+					[
+						11,
+						"status"
+					]
+,					[
+						7,
+						[
+							0,
+							3
+						]
+					]
+					]
+				]
+,				[
+					-1,
+					cr.system_object.prototype.acts.SetVar,
+					null,
+					1215935752935011
+					,[
+					[
+						11,
+						"ang"
+					]
+,					[
+						7,
+						[
+							5,
+							[
+								1,
+								359.5
+							]
+							,[
+								6,
+								[
+									20,
+									63,
+									cr.plugins_.Arr.prototype.exps.At,
+									false,
+									null
+									,[
+[
+										19,
+										cr.system_object.prototype.exps["int"]
+										,[
+[
+											19,
+											cr.system_object.prototype.exps.tokenat
+											,[
+[
+												20,
+												33,
+												cr.plugins_.AJAX.prototype.exps.LastData,
+												true,
+												null
+											]
+,[
+												0,
+												0
+											]
+,[
+												2,
+												"~"
+											]
+											]
+										]
+										]
+									]
+									]
+								]
+								,[
+									1,
+									9.72973
+								]
+							]
+						]
+					]
+					]
+				]
+,				[
+					54,
+					cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
+					"Rotate",
+					4694717344084222
+					,[
+					[
+						0,
+						[
+							0,
+							-30
+						]
+					]
+					]
+				]
+,				[
+					42,
+					cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
+					"Rotate",
+					3070635291358732
+					,[
+					[
+						0,
+						[
+							0,
+							-30
+						]
+					]
+					]
+				]
+				]
+			]
+,			[
+				0,
+				null,
+				false,
 				8184474679704152,
 				[
 				[
-					34,
-					cr.plugins_.AJAX.prototype.cnds.OnComplete,
+					33,
+					cr.plugins_.AJAX.prototype.cnds.OnError,
 					null,
 					1,
 					false,
@@ -48012,101 +50186,16 @@ false,false,1691237419979803
 				],
 				[
 				[
-					-1,
-					cr.system_object.prototype.acts.SetVar,
+					41,
+					cr.plugins_.Browser.prototype.acts.Alert,
 					null,
-					3773648362614367
+					4100438418551357
 					,[
 					[
-						11,
-						"status"
-					]
-,					[
 						7,
 						[
-							0,
-							3
-						]
-					]
-					]
-				]
-,				[
-					-1,
-					cr.system_object.prototype.acts.SetVar,
-					null,
-					2965016813144933
-					,[
-					[
-						11,
-						"ang"
-					]
-,					[
-						7,
-						[
-							5,
-							[
-								1,
-								359.5
-							]
-							,[
-								6,
-								[
-									20,
-									66,
-									cr.plugins_.Arr.prototype.exps.At,
-									false,
-									null
-									,[
-[
-										19,
-										cr.system_object.prototype.exps["int"]
-										,[
-[
-											20,
-											34,
-											cr.plugins_.AJAX.prototype.exps.LastData,
-											true,
-											null
-										]
-										]
-									]
-									]
-								]
-								,[
-									1,
-									9.72973
-								]
-							]
-						]
-					]
-					]
-				]
-,				[
-					57,
-					cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
-					"Rotate",
-					635550890623642
-					,[
-					[
-						0,
-						[
-							0,
-							-30
-						]
-					]
-					]
-				]
-,				[
-					44,
-					cr.behaviors.Rex_Rotate.prototype.acts.SetAcceleration,
-					"Rotate",
-					9177751326470024
-					,[
-					[
-						0,
-						[
-							0,
-							-30
+							2,
+							"Fuck"
 						]
 					]
 					]
@@ -48160,14 +50249,14 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					56
+					53
 				]
 				]
 			]
 			],
 			[
 			[
-				56,
+				53,
 				cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 				null,
 				9335070842830956
@@ -48180,7 +50269,7 @@ false,false,1691237419979803
 					7,
 					[
 						22,
-						56,
+						53,
 						"DragDrop2",
 						cr.behaviors.Rex_DragDrop2.prototype.exps.X,
 						false,
@@ -48190,7 +50279,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				56,
+				53,
 				cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 				null,
 				5967144213105066
@@ -48207,7 +50296,7 @@ false,false,1691237419979803
 							4,
 							[
 								22,
-								56,
+								53,
 								"DragDrop2",
 								cr.behaviors.Rex_DragDrop2.prototype.exps.Y,
 								false,
@@ -48220,7 +50309,7 @@ false,false,1691237419979803
 						]
 						,[
 							20,
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.exps.Y,
 							false,
 							null
@@ -48280,7 +50369,7 @@ false,false,1691237419979803
 						7,
 						[
 							20,
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.exps.Y,
 							false,
 							null
@@ -48310,12 +50399,12 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					53
+					50
 				]
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.cnds.PickByUID,
 				null,
 				0,
@@ -48328,7 +50417,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						29,
+						28,
 						cr.plugins_.Arr.prototype.exps.At,
 						false,
 						null
@@ -48343,7 +50432,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				53,
+				50,
 				cr.plugins_.Sprite.prototype.cnds.IsVisible,
 				null,
 				0,
@@ -48355,19 +50444,19 @@ false,false,1691237419979803
 			],
 			[
 			[
-				59,
+				56,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				9976345709500365
 			]
 ,			[
-				72,
+				69,
 				cr.plugins_.Arr.prototype.acts.Clear,
 				null,
 				9814254389995771
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				2909303239494867
@@ -48420,12 +50509,12 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					54
+					51
 				]
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.cnds.PickByUID,
 				null,
 				0,
@@ -48438,7 +50527,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						29,
+						28,
 						cr.plugins_.Arr.prototype.exps.At,
 						false,
 						null
@@ -48453,7 +50542,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				54,
+				51,
 				cr.plugins_.Sprite.prototype.cnds.IsVisible,
 				null,
 				0,
@@ -48465,14 +50554,14 @@ false,false,1691237419979803
 			],
 			[
 			[
-				36,
+				35,
 				cr.plugins_.Rex_SysExt.prototype.acts.PickByUID,
 				null,
 				3931489908575627
 				,[
 				[
 					4,
-					59
+					56
 				]
 ,				[
 					0,
@@ -48486,7 +50575,7 @@ false,false,1691237419979803
 							,[
 [
 								20,
-								73,
+								70,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -48517,13 +50606,13 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				59,
+				56,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				651625245623253
 			]
 ,			[
-				72,
+				69,
 				cr.plugins_.Arr.prototype.acts.SetX,
 				null,
 				1879756575514963
@@ -48540,7 +50629,7 @@ false,false,1691237419979803
 							,[
 [
 								20,
-								73,
+								70,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -48570,7 +50659,7 @@ false,false,1691237419979803
 						5,
 						[
 							20,
-							73,
+							70,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -48585,7 +50674,7 @@ false,false,1691237419979803
 									,[
 [
 										20,
-										73,
+										70,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -48620,7 +50709,7 @@ false,false,1691237419979803
 								,[
 [
 									20,
-									73,
+									70,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -48648,7 +50737,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				5023934564894494
@@ -48677,7 +50766,7 @@ false,false,1691237419979803
 									,[
 [
 										20,
-										73,
+										70,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -48733,7 +50822,7 @@ false,false,1691237419979803
 								,[
 [
 									20,
-									73,
+									70,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -48761,7 +50850,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				73,
+				70,
 				cr.plugins_.Arr.prototype.acts.Pop,
 				null,
 				5026058975369762
@@ -48796,12 +50885,12 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					50
+					47
 				]
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.cnds.PickByUID,
 				null,
 				0,
@@ -48814,7 +50903,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						29,
+						28,
 						cr.plugins_.Arr.prototype.exps.At,
 						false,
 						null
@@ -48883,7 +50972,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				50,
+				47,
 				cr.plugins_.Sprite.prototype.cnds.IsVisible,
 				null,
 				0,
@@ -48914,7 +51003,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				76,
+				83,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				309721752038412
@@ -48926,7 +51015,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				75,
+				82,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				4876503465093365
@@ -48938,7 +51027,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				56,
+				53,
 				cr.plugins_.Sprite.prototype.acts.SetY,
 				null,
 				4783161030500191
@@ -48953,7 +51042,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				78,
+				85,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				4009863337590643
@@ -48965,31 +51054,19 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				49,
-				cr.plugins_.Text.prototype.acts.SetVisible,
-				null,
-				732103086571573
-				,[
-				[
-					3,
-					0
-				]
-				]
-			]
-,			[
-				59,
+				56,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				4923084495234403
 			]
 ,			[
-				72,
+				69,
 				cr.plugins_.Arr.prototype.acts.Clear,
 				null,
 				6394209014091787
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				6052103956762211
@@ -49022,6 +51099,18 @@ false,false,1691237419979803
 				]
 				]
 			]
+,			[
+				71,
+				cr.plugins_.Text.prototype.acts.SetVisible,
+				null,
+				6023269758657146
+				,[
+				[
+					3,
+					0
+				]
+				]
+			]
 			]
 		]
 ,		[
@@ -49042,7 +51131,7 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					51
+					48
 				]
 				]
 			]
@@ -49074,7 +51163,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				51,
+				48,
 				cr.plugins_.Sprite.prototype.cnds.IsVisible,
 				null,
 				0,
@@ -49105,7 +51194,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				76,
+				83,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				9828008690767689
@@ -49117,7 +51206,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				75,
+				82,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				9903064948974665
@@ -49129,7 +51218,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				78,
+				85,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				9010857402622279
@@ -49141,7 +51230,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				59,
+				56,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				4888223697959666
@@ -49153,7 +51242,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				56,
+				53,
 				cr.plugins_.Sprite.prototype.acts.SetY,
 				null,
 				4707996602174251
@@ -49169,18 +51258,6 @@ false,false,1691237419979803
 			]
 ,			[
 				49,
-				cr.plugins_.Text.prototype.acts.SetVisible,
-				null,
-				7235855925490127
-				,[
-				[
-					3,
-					0
-				]
-				]
-			]
-,			[
-				52,
 				cr.plugins_.Sprite.prototype.acts.SetAnim,
 				null,
 				9921752808096113
@@ -49195,6 +51272,18 @@ false,false,1691237419979803
 ,				[
 					3,
 					1
+				]
+				]
+			]
+,			[
+				71,
+				cr.plugins_.Text.prototype.acts.SetVisible,
+				null,
+				4562752212965683
+				,[
+				[
+					3,
+					0
 				]
 				]
 			]
@@ -49218,12 +51307,12 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					48
+					46
 				]
 				]
 			]
 ,			[
-				48,
+				46,
 				cr.plugins_.Sprite.prototype.cnds.IsVisible,
 				null,
 				0,
@@ -49231,6 +51320,39 @@ false,false,1691237419979803
 				false,
 				false,
 				6999451668209993
+			]
+,			[
+				-1,
+				cr.system_object.prototype.cnds.Compare,
+				null,
+				0,
+				false,
+				false,
+				false,
+				5065671795643554
+				,[
+				[
+					7,
+					[
+						20,
+						46,
+						cr.plugins_.Sprite.prototype.exps.AnimationName,
+						true,
+						null
+					]
+				]
+,				[
+					8,
+					0
+				]
+,				[
+					7,
+					[
+						2,
+						"s0"
+					]
+				]
+				]
 			]
 			],
 			[
@@ -49266,7 +51388,7 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					52
+					49
 				]
 				]
 			]
@@ -49298,7 +51420,34 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				-1,
+				cr.system_object.prototype.cnds.CompareVar,
+				null,
+				0,
+				false,
+				false,
+				false,
+				8416610575369845
+				,[
+				[
+					11,
+					"bet"
+				]
+,				[
+					8,
+					3
+				]
+,				[
+					7,
+					[
+						23,
+						"balance"
+					]
+				]
+				]
+			]
+,			[
+				31,
 				cr.plugins_.Text.prototype.cnds.PickByUID,
 				null,
 				0,
@@ -49311,7 +51460,7 @@ false,false,1691237419979803
 					0,
 					[
 						20,
-						29,
+						28,
 						cr.plugins_.Arr.prototype.exps.At,
 						false,
 						null
@@ -49382,7 +51531,7 @@ false,false,1691237419979803
 			],
 			[
 			[
-				76,
+				83,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				9728818403134984
@@ -49394,7 +51543,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				75,
+				82,
 				cr.plugins_.Sprite.prototype.acts.SetVisible,
 				null,
 				2025672707231042
@@ -49469,7 +51618,7 @@ false,false,1691237419979803
 				]
 			]
 ,			[
-				32,
+				31,
 				cr.plugins_.Text.prototype.acts.SetText,
 				null,
 				7526786065679284
@@ -49487,6 +51636,18 @@ false,false,1691237419979803
 							"balance"
 						]
 					]
+				]
+				]
+			]
+,			[
+				71,
+				cr.plugins_.Text.prototype.acts.SetVisible,
+				null,
+				2226837322369059
+				,[
+				[
+					3,
+					1
 				]
 				]
 			]
@@ -49533,7 +51694,7 @@ false,false,1691237419979803
 					7,
 					[
 						20,
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.exps.Y,
 						false,
 						null
@@ -49561,7 +51722,7 @@ false,false,1691237419979803
 						]
 						,[
 							20,
-							28,
+							27,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -49599,7 +51760,7 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					55
+					52
 				]
 				]
 			]
@@ -49615,7 +51776,7 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					14
+					13
 				]
 				]
 			]
@@ -49659,12 +51820,12 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					60
+					57
 				]
 				]
 			]
 ,			[
-				60,
+				57,
 				cr.plugins_.Sprite.prototype.cnds.IsVisible,
 				null,
 				0,
@@ -49788,7 +51949,7 @@ false,false,1691237419979803
 				],
 				[
 				[
-					60,
+					57,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					9279893614445785
@@ -49803,7 +51964,7 @@ false,false,1691237419979803
 							]
 							,[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -49882,7 +52043,7 @@ false,false,1691237419979803
 				],
 				[
 				[
-					50,
+					47,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					2813586601160014
@@ -49901,7 +52062,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					51,
+					48,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					8652781938356974
@@ -49920,7 +52081,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					52,
+					49,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					7256433525264324
@@ -49939,7 +52100,26 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					56,
+					15,
+					cr.plugins_.Sprite.prototype.acts.SetAnim,
+					null,
+					4478889245962433
+					,[
+					[
+						1,
+						[
+							2,
+							"s0"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					53,
 					cr.behaviors.Rex_DragDrop2.prototype.acts.SetActivated,
 					"DragDrop2",
 					7570642321594731
@@ -49951,7 +52131,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					75,
+					82,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					9536164113024731
@@ -49963,7 +52143,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					76,
+					83,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					4133574877451281
@@ -49974,15 +52154,61 @@ false,false,1691237419979803
 					]
 					]
 				]
-,				[
-					49,
-					cr.plugins_.Text.prototype.acts.SetVisible,
+				]
+				,[
+				[
+					0,
 					null,
-					1819036675093226
-					,[
+					false,
+					759561962406894,
 					[
-						3,
-						1
+					[
+						-1,
+						cr.system_object.prototype.cnds.CompareVar,
+						null,
+						0,
+						false,
+						false,
+						false,
+						7097107779718875
+						,[
+						[
+							11,
+							"bet"
+						]
+,						[
+							8,
+							4
+						]
+,						[
+							7,
+							[
+								23,
+								"balance"
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						49,
+						cr.plugins_.Sprite.prototype.acts.SetAnim,
+						null,
+						5418343589885902
+						,[
+						[
+							1,
+							[
+								2,
+								"s1"
+							]
+						]
+,						[
+							3,
+							1
+						]
+						]
 					]
 					]
 				]
@@ -50030,7 +52256,7 @@ false,false,1691237419979803
 				],
 				[
 				[
-					50,
+					47,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					5426936059835093
@@ -50049,7 +52275,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					51,
+					48,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					6072272634856902
@@ -50068,7 +52294,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					52,
+					49,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					2032030733841723
@@ -50087,7 +52313,26 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					56,
+					15,
+					cr.plugins_.Sprite.prototype.acts.SetAnim,
+					null,
+					5380451691639832
+					,[
+					[
+						1,
+						[
+							2,
+							"s1"
+						]
+					]
+,					[
+						3,
+						1
+					]
+					]
+				]
+,				[
+					53,
 					cr.behaviors.Rex_DragDrop2.prototype.acts.SetActivated,
 					"DragDrop2",
 					7016321591002847
@@ -50099,7 +52344,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					75,
+					82,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					1953468966949284
@@ -50111,7 +52356,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					76,
+					83,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					4926430505293963
@@ -50119,18 +52364,6 @@ false,false,1691237419979803
 					[
 						3,
 						0
-					]
-					]
-				]
-,				[
-					49,
-					cr.plugins_.Text.prototype.acts.SetVisible,
-					null,
-					3684886964725601
-					,[
-					[
-						3,
-						1
 					]
 					]
 				]
@@ -50172,7 +52405,7 @@ false,false,1691237419979803
 				],
 				[
 				[
-					56,
+					53,
 					cr.behaviors.Rex_DragDrop2.prototype.acts.SetActivated,
 					"DragDrop2",
 					7079214638689902
@@ -50184,7 +52417,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					75,
+					82,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					737480089643238
@@ -50196,7 +52429,7 @@ false,false,1691237419979803
 					]
 				]
 ,				[
-					76,
+					83,
 					cr.plugins_.Sprite.prototype.acts.SetVisible,
 					null,
 					9346637371728214
@@ -50204,18 +52437,6 @@ false,false,1691237419979803
 					[
 						3,
 						1
-					]
-					]
-				]
-,				[
-					49,
-					cr.plugins_.Text.prototype.acts.SetVisible,
-					null,
-					9079391685470422
-					,[
-					[
-						3,
-						0
 					]
 					]
 				]
@@ -50257,7 +52478,7 @@ false,false,1691237419979803
 					],
 					[
 					[
-						53,
+						50,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						3633544651650451
@@ -50276,7 +52497,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						54,
+						51,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						3809642344561511
@@ -50295,7 +52516,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						52,
+						49,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						502408755108653
@@ -50351,7 +52572,7 @@ false,false,1691237419979803
 					],
 					[
 					[
-						53,
+						50,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						4817028840963694
@@ -50370,7 +52591,7 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						54,
+						51,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						2255504372826089
@@ -50389,10 +52610,66 @@ false,false,1691237419979803
 						]
 					]
 ,					[
-						52,
+						49,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						4683390673777412
+						,[
+						[
+							1,
+							[
+								2,
+								"s1"
+							]
+						]
+,						[
+							3,
+							1
+						]
+						]
+					]
+					]
+				]
+,				[
+					0,
+					null,
+					false,
+					9552440995540175,
+					[
+					[
+						-1,
+						cr.system_object.prototype.cnds.CompareVar,
+						null,
+						0,
+						false,
+						false,
+						false,
+						6534059118285123
+						,[
+						[
+							11,
+							"bet"
+						]
+,						[
+							8,
+							4
+						]
+,						[
+							7,
+							[
+								23,
+								"balance"
+							]
+						]
+						]
+					]
+					],
+					[
+					[
+						49,
+						cr.plugins_.Sprite.prototype.acts.SetAnim,
+						null,
+						5569017451311259
 						,[
 						[
 							1,
@@ -50420,7 +52697,7 @@ false,false,1691237419979803
 			5318297845616054,
 			[
 			[
-				56,
+				53,
 				cr.behaviors.Rex_DragDrop2.prototype.cnds.IsDragging,
 				"DragDrop2",
 				0,
@@ -50430,7 +52707,7 @@ false,false,1691237419979803
 				9344514130357813
 			]
 ,			[
-				56,
+				53,
 				cr.plugins_.Sprite.prototype.cnds.IsOverlapping,
 				null,
 				0,
@@ -50441,7 +52718,7 @@ false,false,1691237419979803
 				,[
 				[
 					4,
-					55
+					52
 				]
 				]
 			]
@@ -50461,7 +52738,7 @@ false,false,1691237419979803
 					7,
 					[
 						20,
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.exps.Y,
 						false,
 						null
@@ -50498,6 +52775,36 @@ false,false,1691237419979803
 			]
 			],
 			[
+			[
+				1,
+				cr.plugins_.Audio.prototype.acts.Play,
+				null,
+				6598536528944199
+				,[
+				[
+					2,
+					["bst1",true]
+				]
+,				[
+					3,
+					0
+				]
+,				[
+					0,
+					[
+						0,
+						0
+					]
+				]
+,				[
+					1,
+					[
+						2,
+						"s"
+					]
+				]
+				]
+			]
 			]
 			,[
 			[
@@ -50528,7 +52835,7 @@ false,false,6686389590010585
 				1563546665885092,
 				[
 				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -50549,7 +52856,7 @@ false,false,6686389590010585
 						7,
 						[
 							21,
-							56,
+							53,
 							false,
 							null
 							,3
@@ -50571,7 +52878,7 @@ false,false,6686389590010585
 						0,
 						[
 							21,
-							56,
+							53,
 							false,
 							null
 							,1
@@ -50585,7 +52892,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,2
@@ -50609,7 +52916,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,2
@@ -50630,14 +52937,14 @@ false,false,6686389590010585
 				],
 				[
 				[
-					61,
+					58,
 					cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 					null,
 					8918273538973976
 					,[
 					[
 						4,
-						59
+						56
 					]
 ,					[
 						0,
@@ -50645,7 +52952,7 @@ false,false,6686389590010585
 							4,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,3
@@ -50666,7 +52973,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,2
@@ -50683,7 +52990,7 @@ false,false,6686389590010585
 							]
 							,[
 								20,
-								56,
+								53,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -50700,7 +53007,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					59,
+					56,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					4286497465355209
@@ -50715,7 +53022,7 @@ false,false,6686389590010585
 							]
 							,[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -50735,14 +53042,14 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					59,
+					56,
 					cr.behaviors.Pin.prototype.acts.Pin,
 					"Pin",
 					8610915883470387
 					,[
 					[
 						4,
-						56
+						53
 					]
 ,					[
 						3,
@@ -50770,7 +53077,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					73,
+					70,
 					cr.plugins_.Arr.prototype.acts.Push,
 					null,
 					3731605217566746
@@ -50791,7 +53098,7 @@ false,false,6686389590010585
 										10,
 										[
 											20,
-											59,
+											56,
 											cr.plugins_.Sprite.prototype.exps.UID,
 											false,
 											null
@@ -50813,7 +53120,7 @@ false,false,6686389590010585
 							]
 							,[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -50833,14 +53140,14 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					61,
+					58,
 					cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 					null,
 					9046570005414382
 					,[
 					[
 						4,
-						46
+						44
 					]
 ,					[
 						0,
@@ -50850,7 +53157,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -50876,7 +53183,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,2
@@ -50893,7 +53200,7 @@ false,false,6686389590010585
 							]
 							,[
 								20,
-								56,
+								53,
 								cr.plugins_.Sprite.prototype.exps.Y,
 								false,
 								null
@@ -50910,14 +53217,14 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					46,
+					44,
 					cr.behaviors.Pin.prototype.acts.Pin,
 					"Pin",
 					5590693126613823
 					,[
 					[
 						4,
-						56
+						53
 					]
 ,					[
 						3,
@@ -50926,7 +53233,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					46,
+					44,
 					cr.plugins_.Sprite.prototype.acts.SetWidth,
 					null,
 					5574693764982441
@@ -50941,7 +53248,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 					null,
 					4714157956895344
@@ -50968,7 +53275,7 @@ false,false,6686389590010585
 				8872676736043691,
 				[
 				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -50991,7 +53298,7 @@ false,false,6686389590010585
 							5,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,3
@@ -51040,7 +53347,7 @@ false,false,6686389590010585
 				],
 				[
 				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 					null,
 					1760543961193981
@@ -51055,7 +53362,7 @@ false,false,6686389590010585
 							4,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,2
@@ -51091,7 +53398,7 @@ false,false,6686389590010585
 					8496990889119949,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -51116,7 +53423,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -51148,7 +53455,7 @@ false,false,6686389590010585
 							0,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,1
@@ -51160,7 +53467,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -51177,7 +53484,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -51193,14 +53500,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						2298488542341603
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -51208,7 +53515,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -51227,7 +53534,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,4
@@ -51239,7 +53546,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -51256,7 +53563,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						3420049327402222
@@ -51271,7 +53578,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -51291,14 +53598,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						3820073478347868
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -51333,7 +53640,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						1257930886181731
@@ -51354,7 +53661,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -51376,7 +53683,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -51396,7 +53703,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						2375962252791079
@@ -51455,14 +53762,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							6533980927791364
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -51470,7 +53777,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -51489,7 +53796,7 @@ false,false,6686389590010585
 										5,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,4
@@ -51501,7 +53808,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -51518,14 +53825,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							5405856714345123
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -51581,7 +53888,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								6334834279397035
@@ -51618,14 +53925,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							8293270949895972
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -51633,7 +53940,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -51654,7 +53961,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,4
@@ -51666,7 +53973,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -51688,14 +53995,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							6283571018715752
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -51704,14 +54011,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							9177349341795413
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -51721,7 +54028,7 @@ false,false,6686389590010585
 										4,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,3
@@ -51747,7 +54054,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,2
@@ -51764,7 +54071,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -51781,14 +54088,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							6756418019026282
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -51797,7 +54104,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							9420113785018615
@@ -51822,7 +54129,7 @@ false,false,6686389590010585
 					4333151248092667,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -51847,7 +54154,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -51879,7 +54186,7 @@ false,false,6686389590010585
 							0,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,1
@@ -51891,7 +54198,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -51908,7 +54215,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -51924,14 +54231,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						2499111680279411
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -51939,7 +54246,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -51958,7 +54265,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,4
@@ -51970,7 +54277,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -51987,7 +54294,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						8152719438884421
@@ -52002,7 +54309,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -52022,14 +54329,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						7572893795727804
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -52071,7 +54378,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						6719112033014575
@@ -52092,7 +54399,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -52114,7 +54421,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -52134,7 +54441,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						136595491066867
@@ -52193,14 +54500,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							8214985134384425
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -52208,7 +54515,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -52227,7 +54534,7 @@ false,false,6686389590010585
 										5,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,4
@@ -52239,7 +54546,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -52256,14 +54563,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							1183564940037582
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -52319,7 +54626,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetWidth,
 								null,
 								1171912284729939
@@ -52354,7 +54661,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetWidth,
 								null,
 								2168611537787367
@@ -52369,7 +54676,7 @@ false,false,6686389590010585
 								]
 							]
 ,							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								2375484583642924
@@ -52406,14 +54713,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							1137061005873566
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -52421,7 +54728,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -52442,7 +54749,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,4
@@ -52454,7 +54761,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -52476,7 +54783,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							3822491860648838
@@ -52491,14 +54798,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							2862151846742299
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -52507,14 +54814,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							8744995880476463
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -52524,7 +54831,7 @@ false,false,6686389590010585
 										4,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,3
@@ -52550,7 +54857,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,2
@@ -52567,7 +54874,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -52584,14 +54891,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							7887879661418584
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -52600,7 +54907,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							4691223103793829
@@ -52625,7 +54932,7 @@ false,false,6686389590010585
 					9252467797804171,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -52650,7 +54957,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -52682,7 +54989,7 @@ false,false,6686389590010585
 							0,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,1
@@ -52694,7 +55001,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -52711,7 +55018,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -52727,14 +55034,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						7337398174848375
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -52742,7 +55049,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -52761,7 +55068,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,4
@@ -52773,7 +55080,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -52790,7 +55097,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						9805253896540921
@@ -52805,7 +55112,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -52858,7 +55165,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						2950771443766419
@@ -52879,7 +55186,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -52901,7 +55208,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -52921,14 +55228,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						1220930035914906
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -52937,7 +55244,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						8054956476651538
@@ -52996,14 +55303,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							6976020213502858
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -53011,7 +55318,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -53030,7 +55337,7 @@ false,false,6686389590010585
 										5,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,4
@@ -53042,7 +55349,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -53059,14 +55366,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							7373370929129279
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -53122,7 +55429,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								6359872675203389
@@ -53159,14 +55466,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							4607507984990837
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -53174,7 +55481,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -53195,7 +55502,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,4
@@ -53207,7 +55514,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -53229,14 +55536,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							2079130452584477
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -53245,14 +55552,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							8943717023989753
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -53262,7 +55569,7 @@ false,false,6686389590010585
 										4,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,3
@@ -53288,7 +55595,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,2
@@ -53305,7 +55612,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -53322,14 +55629,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							2275445779590616
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -53338,7 +55645,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							9211463276149303
@@ -53363,7 +55670,7 @@ false,false,6686389590010585
 					2871642490500769,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -53388,7 +55695,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -53420,7 +55727,7 @@ false,false,6686389590010585
 							0,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,1
@@ -53432,7 +55739,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -53449,7 +55756,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -53465,14 +55772,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						6449301111219118
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -53480,7 +55787,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -53499,7 +55806,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,4
@@ -53511,7 +55818,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -53528,7 +55835,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						626924854239918
@@ -53543,7 +55850,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -53563,14 +55870,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						5722225983404075
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -53612,7 +55919,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						9971995498799902
@@ -53633,7 +55940,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -53655,7 +55962,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -53675,7 +55982,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						3069924295962952
@@ -53734,14 +56041,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							1574346936966467
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -53749,7 +56056,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -53768,7 +56075,7 @@ false,false,6686389590010585
 										5,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,4
@@ -53780,7 +56087,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -53797,14 +56104,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							2551186233818481
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -53860,7 +56167,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetWidth,
 								null,
 								9562179149379801
@@ -53895,7 +56202,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetWidth,
 								null,
 								7689852309784483
@@ -53910,7 +56217,7 @@ false,false,6686389590010585
 								]
 							]
 ,							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								4629070657119719
@@ -53947,14 +56254,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							2165820571704175
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -53962,7 +56269,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -53983,7 +56290,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,4
@@ -53995,7 +56302,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -54017,14 +56324,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							6401097904421977
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -54033,7 +56340,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							7660048881286156
@@ -54048,14 +56355,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							2287292270240335
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -54065,7 +56372,7 @@ false,false,6686389590010585
 										4,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,3
@@ -54091,7 +56398,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,2
@@ -54108,7 +56415,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -54125,14 +56432,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							1781331428863461
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -54141,7 +56448,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							9473743335430008
@@ -54166,7 +56473,7 @@ false,false,6686389590010585
 					9356240337094026,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -54191,7 +56498,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -54223,7 +56530,7 @@ false,false,6686389590010585
 							0,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,1
@@ -54235,7 +56542,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -54252,7 +56559,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -54268,14 +56575,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						9128596542453997
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -54283,7 +56590,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -54302,7 +56609,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,4
@@ -54314,7 +56621,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -54331,7 +56638,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						3486934622023399
@@ -54346,7 +56653,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -54366,14 +56673,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						2281670576394295
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -54415,7 +56722,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						4337646478684319
@@ -54436,7 +56743,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -54458,7 +56765,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -54478,7 +56785,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						7042582808509587
@@ -54537,14 +56844,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							3696121609992352
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -54552,7 +56859,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -54571,7 +56878,7 @@ false,false,6686389590010585
 										5,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,4
@@ -54583,7 +56890,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -54600,14 +56907,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							9455308574498251
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -54663,7 +56970,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								4500804052582492
@@ -54700,14 +57007,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							9220487369271766
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -54715,7 +57022,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -54736,7 +57043,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,4
@@ -54748,7 +57055,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -54770,14 +57077,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							7938686789479371
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -54786,14 +57093,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							3781950696792422
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -54803,7 +57110,7 @@ false,false,6686389590010585
 										4,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,3
@@ -54829,7 +57136,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,2
@@ -54846,7 +57153,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -54863,14 +57170,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							1874615458166277
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -54879,7 +57186,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							8758174293297956
@@ -54904,7 +57211,7 @@ false,false,6686389590010585
 					9476476155119555,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -54927,7 +57234,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -54954,7 +57261,7 @@ false,false,6686389590010585
 							0,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,1
@@ -54966,7 +57273,7 @@ false,false,6686389590010585
 								5,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -54983,7 +57290,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,4
@@ -54999,14 +57306,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						3071766855466463
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -55014,7 +57321,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -55033,7 +57340,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,4
@@ -55045,7 +57352,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -55062,7 +57369,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						6503608389580238
@@ -55077,7 +57384,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -55097,14 +57404,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						6036613525374451
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -55146,7 +57453,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						976958703876061
@@ -55167,7 +57474,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -55189,7 +57496,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -55209,7 +57516,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						3669544123004877
@@ -55268,14 +57575,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							8065173255468899
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -55285,7 +57592,7 @@ false,false,6686389590010585
 										4,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,3
@@ -55309,7 +57616,7 @@ false,false,6686389590010585
 										5,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,4
@@ -55321,7 +57628,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -55338,14 +57645,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							2337683355708032
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -55354,7 +57661,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							5870350307071553
@@ -55416,7 +57723,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								7349084798162896
@@ -55451,7 +57758,7 @@ false,false,6686389590010585
 							],
 							[
 							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								6887353775110343
@@ -55480,7 +57787,7 @@ false,false,6686389590010585
 				835476556711903,
 				[
 				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -55507,7 +57814,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -55606,7 +57913,7 @@ false,false,6686389590010585
 						5436481888718948,
 						[
 						[
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 							null,
 							0,
@@ -55646,7 +57953,7 @@ false,false,6686389590010585
 								7,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,1
@@ -55662,7 +57969,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,2
@@ -55685,14 +57992,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							3840872423943195
 							,[
 							[
 								4,
-								59
+								56
 							]
 ,							[
 								0,
@@ -55700,7 +58007,7 @@ false,false,6686389590010585
 									5,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -55723,7 +58030,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,2
@@ -55752,7 +58059,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -55769,7 +58076,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							59,
+							56,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							4407636081767555
@@ -55784,7 +58091,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										28,
+										27,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -55804,14 +58111,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							59,
+							56,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							5169232138386766
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -55846,7 +58153,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							73,
+							70,
 							cr.plugins_.Arr.prototype.acts.Push,
 							null,
 							5187277856323128
@@ -55867,7 +58174,7 @@ false,false,6686389590010585
 												10,
 												[
 													20,
-													59,
+													56,
 													cr.plugins_.Sprite.prototype.exps.UID,
 													false,
 													null
@@ -55889,7 +58196,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										28,
+										27,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -55909,7 +58216,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 							null,
 							9482031424860193
@@ -55968,14 +58275,14 @@ false,false,6686389590010585
 							],
 							[
 							[
-								45,
+								43,
 								cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 								null,
 								4336235843884546
 								,[
 								[
 									4,
-									46
+									44
 								]
 ,								[
 									0,
@@ -55985,7 +58292,7 @@ false,false,6686389590010585
 											4,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,3
@@ -56015,7 +58322,7 @@ false,false,6686389590010585
 														4,
 														[
 															21,
-															56,
+															53,
 															false,
 															null
 															,2
@@ -56044,7 +58351,7 @@ false,false,6686389590010585
 											]
 											,[
 												20,
-												56,
+												53,
 												cr.plugins_.Sprite.prototype.exps.Y,
 												false,
 												null
@@ -56066,14 +58373,14 @@ false,false,6686389590010585
 								]
 							]
 ,							[
-								46,
+								44,
 								cr.behaviors.Pin.prototype.acts.Pin,
 								"Pin",
 								9652658724230925
 								,[
 								[
 									4,
-									56
+									53
 								]
 ,								[
 									3,
@@ -56082,7 +58389,7 @@ false,false,6686389590010585
 								]
 							]
 ,							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetWidth,
 								null,
 								7801701348371998
@@ -56097,7 +58404,7 @@ false,false,6686389590010585
 								]
 							]
 ,							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								1804864241087478
@@ -56195,7 +58502,7 @@ false,false,6686389590010585
 								],
 								[
 								[
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 									null,
 									2547234029715489
@@ -56212,7 +58519,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,2
@@ -56274,14 +58581,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										3734366981012888
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -56289,7 +58596,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -56308,7 +58615,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -56320,7 +58627,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -56337,14 +58644,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										1767695495115324
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -56400,7 +58707,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											3615055263295176
@@ -56437,14 +58744,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										5717235735474021
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -56452,7 +58759,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -56471,7 +58778,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -56483,7 +58790,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -56500,14 +58807,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										3460090019135221
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -56563,7 +58870,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											3954544325640865
@@ -56600,14 +58907,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										118287775962271
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -56615,7 +58922,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -56634,7 +58941,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -56646,7 +58953,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -56663,14 +58970,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										7455593891369257
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -56726,7 +59033,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											2274625732864327
@@ -56821,7 +59128,7 @@ false,false,6686389590010585
 								],
 								[
 								[
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 									null,
 									494524634135597
@@ -56838,7 +59145,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,2
@@ -56900,14 +59207,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										3801304959084948
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -56915,7 +59222,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -56934,7 +59241,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -56946,7 +59253,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -56963,14 +59270,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										5097770725838285
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -57004,7 +59311,7 @@ false,false,6686389590010585
 													,[
 [
 														20,
-														68,
+														65,
 														cr.plugins_.Dictionary.prototype.exps.Get,
 														false,
 														null
@@ -57052,7 +59359,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											4234708633668283
@@ -57089,14 +59396,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										2327908247999259
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -57104,7 +59411,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -57123,7 +59430,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -57135,7 +59442,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -57152,14 +59459,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										3508747279752756
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -57193,7 +59500,7 @@ false,false,6686389590010585
 													,[
 [
 														20,
-														68,
+														65,
 														cr.plugins_.Dictionary.prototype.exps.Get,
 														false,
 														null
@@ -57241,7 +59548,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											3289978036935141
@@ -57278,14 +59585,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										5160599155700911
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -57293,7 +59600,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -57312,7 +59619,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -57324,7 +59631,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -57341,14 +59648,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										3902506589635001
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -57382,7 +59689,7 @@ false,false,6686389590010585
 													,[
 [
 														20,
-														68,
+														65,
 														cr.plugins_.Dictionary.prototype.exps.Get,
 														false,
 														null
@@ -57430,7 +59737,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											6202851335549743
@@ -57525,7 +59832,7 @@ false,false,6686389590010585
 								],
 								[
 								[
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 									null,
 									3131589518313058
@@ -57542,7 +59849,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,2
@@ -57604,14 +59911,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										7317639421160838
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -57619,7 +59926,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -57638,7 +59945,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -57650,7 +59957,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -57667,14 +59974,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										3243864756195541
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -57708,7 +60015,7 @@ false,false,6686389590010585
 													,[
 [
 														20,
-														68,
+														65,
 														cr.plugins_.Dictionary.prototype.exps.Get,
 														false,
 														null
@@ -57756,7 +60063,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											4088909510126141
@@ -57793,14 +60100,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										9466795022289383
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -57808,7 +60115,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -57827,7 +60134,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -57839,7 +60146,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -57856,14 +60163,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										7044391208822774
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -57897,7 +60204,7 @@ false,false,6686389590010585
 													,[
 [
 														20,
-														68,
+														65,
 														cr.plugins_.Dictionary.prototype.exps.Get,
 														false,
 														null
@@ -57945,7 +60252,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											7806425510042666
@@ -57982,14 +60289,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										5285303771311956
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -57997,7 +60304,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -58016,7 +60323,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -58028,7 +60335,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -58045,14 +60352,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										2792120603458725
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -58086,7 +60393,7 @@ false,false,6686389590010585
 													,[
 [
 														20,
-														68,
+														65,
 														cr.plugins_.Dictionary.prototype.exps.Get,
 														false,
 														null
@@ -58134,7 +60441,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											9996551084483778
@@ -58229,7 +60536,7 @@ false,false,6686389590010585
 								],
 								[
 								[
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 									null,
 									1482630140008531
@@ -58246,7 +60553,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,2
@@ -58308,14 +60615,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										7649264683282425
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -58323,7 +60630,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -58342,7 +60649,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -58354,7 +60661,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -58371,14 +60678,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										4416359544055452
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -58434,7 +60741,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											6780358553529447
@@ -58471,14 +60778,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										6155882836719989
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -58486,7 +60793,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -58505,7 +60812,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -58517,7 +60824,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -58534,14 +60841,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										7062486185077952
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -58597,7 +60904,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											5038637319631293
@@ -58634,14 +60941,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										45,
+										43,
 										cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 										null,
 										7164990336451364
 										,[
 										[
 											4,
-											46
+											44
 										]
 ,										[
 											0,
@@ -58649,7 +60956,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,3
@@ -58668,7 +60975,7 @@ false,false,6686389590010585
 													5,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,4
@@ -58680,7 +60987,7 @@ false,false,6686389590010585
 												]
 												,[
 													20,
-													56,
+													53,
 													cr.plugins_.Sprite.prototype.exps.Y,
 													false,
 													null
@@ -58697,14 +61004,14 @@ false,false,6686389590010585
 										]
 									]
 ,									[
-										46,
+										44,
 										cr.behaviors.Pin.prototype.acts.Pin,
 										"Pin",
 										4717096475750133
 										,[
 										[
 											4,
-											56
+											53
 										]
 ,										[
 											3,
@@ -58760,7 +61067,7 @@ false,false,6686389590010585
 										],
 										[
 										[
-											46,
+											44,
 											cr.plugins_.Sprite.prototype.acts.Destroy,
 											null,
 											188668593644608
@@ -58812,14 +61119,14 @@ false,false,6686389590010585
 							],
 							[
 							[
-								45,
+								43,
 								cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 								null,
 								1688440650849154
 								,[
 								[
 									4,
-									46
+									44
 								]
 ,								[
 									0,
@@ -58829,7 +61136,7 @@ false,false,6686389590010585
 											4,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,3
@@ -58859,7 +61166,7 @@ false,false,6686389590010585
 														4,
 														[
 															21,
-															56,
+															53,
 															false,
 															null
 															,2
@@ -58888,7 +61195,7 @@ false,false,6686389590010585
 											]
 											,[
 												20,
-												56,
+												53,
 												cr.plugins_.Sprite.prototype.exps.Y,
 												false,
 												null
@@ -58910,14 +61217,14 @@ false,false,6686389590010585
 								]
 							]
 ,							[
-								46,
+								44,
 								cr.behaviors.Pin.prototype.acts.Pin,
 								"Pin",
 								4138688280001303
 								,[
 								[
 									4,
-									56
+									53
 								]
 ,								[
 									3,
@@ -58926,7 +61233,7 @@ false,false,6686389590010585
 								]
 							]
 ,							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetWidth,
 								null,
 								3339465535374166
@@ -58941,7 +61248,7 @@ false,false,6686389590010585
 								]
 							]
 ,							[
-								46,
+								44,
 								cr.plugins_.Sprite.prototype.acts.SetHeight,
 								null,
 								9525344852510909
@@ -58970,7 +61277,7 @@ false,false,6686389590010585
 				9556862198719435,
 				[
 				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -58997,7 +61304,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -59024,7 +61331,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -59142,7 +61449,7 @@ false,false,6686389590010585
 						283239156987363,
 						[
 						[
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 							null,
 							0,
@@ -59182,7 +61489,7 @@ false,false,6686389590010585
 								7,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,1
@@ -59198,7 +61505,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,2
@@ -59221,14 +61528,14 @@ false,false,6686389590010585
 						],
 						[
 						[
-							61,
+							58,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							1931939952616961
 							,[
 							[
 								4,
-								59
+								56
 							]
 ,							[
 								0,
@@ -59249,7 +61556,7 @@ false,false,6686389590010585
 												4,
 												[
 													21,
-													56,
+													53,
 													false,
 													null
 													,2
@@ -59278,7 +61585,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										56,
+										53,
 										cr.plugins_.Sprite.prototype.exps.Y,
 										false,
 										null
@@ -59295,7 +61602,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							59,
+							56,
 							cr.plugins_.Sprite.prototype.acts.SetAnim,
 							null,
 							3001637792575093
@@ -59310,7 +61617,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										28,
+										27,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -59330,14 +61637,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							59,
+							56,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							341574496064363
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -59372,7 +61679,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							73,
+							70,
 							cr.plugins_.Arr.prototype.acts.Push,
 							null,
 							1779021805157711
@@ -59393,7 +61700,7 @@ false,false,6686389590010585
 												10,
 												[
 													20,
-													59,
+													56,
 													cr.plugins_.Sprite.prototype.exps.UID,
 													false,
 													null
@@ -59415,7 +61722,7 @@ false,false,6686389590010585
 									]
 									,[
 										20,
-										28,
+										27,
 										cr.plugins_.Arr.prototype.exps.At,
 										false,
 										null
@@ -59435,14 +61742,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							45,
+							43,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							5910998522939716
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -59452,7 +61759,7 @@ false,false,6686389590010585
 										4,
 										[
 											21,
-											56,
+											53,
 											false,
 											null
 											,3
@@ -59482,7 +61789,7 @@ false,false,6686389590010585
 													4,
 													[
 														21,
-														56,
+														53,
 														false,
 														null
 														,2
@@ -59511,7 +61818,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -59533,14 +61840,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							6222673509540003
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -59549,7 +61856,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetWidth,
 							null,
 							5729205708139915
@@ -59564,7 +61871,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.plugins_.Sprite.prototype.acts.SetHeight,
 							null,
 							8240126972408364
@@ -59579,7 +61886,7 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 							null,
 							661405480231854
@@ -59610,7 +61917,7 @@ false,false,6686389590010585
 				6593534849501961,
 				[
 				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -59631,7 +61938,7 @@ false,false,6686389590010585
 						7,
 						[
 							21,
-							56,
+							53,
 							false,
 							null
 							,3
@@ -59640,7 +61947,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -59667,7 +61974,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					56,
+					53,
 					cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 					null,
 					0,
@@ -59704,7 +62011,7 @@ false,false,6686389590010585
 					6495563015659504,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -59727,7 +62034,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -59743,14 +62050,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						4122644626621734
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -59758,7 +62065,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -59779,7 +62086,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -59796,7 +62103,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						6025075364798502
@@ -59811,7 +62118,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -59831,14 +62138,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						4787231652666384
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -59866,7 +62173,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						4588456092168412
@@ -59887,7 +62194,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -59909,7 +62216,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -59929,7 +62236,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						1366501982339229
@@ -59991,7 +62298,7 @@ false,false,6686389590010585
 						],
 						[
 						[
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 							null,
 							2952342146258005
@@ -60006,7 +62313,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,2
@@ -60027,14 +62334,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							45,
+							43,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							8737805974847998
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -60042,7 +62349,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -60063,7 +62370,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,4
@@ -60075,7 +62382,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -60097,14 +62404,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							7319778101960219
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -60123,7 +62430,7 @@ false,false,6686389590010585
 					3780502708415168,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -60146,7 +62453,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -60162,14 +62469,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						8049450184760594
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -60177,7 +62484,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -60198,7 +62505,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -60215,7 +62522,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						2338237294938743
@@ -60230,7 +62537,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -60269,7 +62576,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						580017697544694
@@ -60290,7 +62597,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -60312,7 +62619,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -60332,14 +62639,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						2775406099631476
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -60348,7 +62655,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						2477101761177381
@@ -60410,7 +62717,7 @@ false,false,6686389590010585
 						],
 						[
 						[
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 							null,
 							8144058626078164
@@ -60425,7 +62732,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,2
@@ -60446,14 +62753,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							45,
+							43,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							2727036950212973
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -60461,7 +62768,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -60482,7 +62789,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,4
@@ -60494,7 +62801,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -60516,14 +62823,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							485858123843284
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -60542,7 +62849,7 @@ false,false,6686389590010585
 					6911119000307137,
 					[
 					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
 						null,
 						0,
@@ -60563,7 +62870,7 @@ false,false,6686389590010585
 							7,
 							[
 								21,
-								56,
+								53,
 								false,
 								null
 								,3
@@ -60574,14 +62881,14 @@ false,false,6686389590010585
 					],
 					[
 					[
-						61,
+						58,
 						cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 						null,
 						183427777735283
 						,[
 						[
 							4,
-							59
+							56
 						]
 ,						[
 							0,
@@ -60589,7 +62896,7 @@ false,false,6686389590010585
 								4,
 								[
 									21,
-									56,
+									53,
 									false,
 									null
 									,3
@@ -60610,7 +62917,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									56,
+									53,
 									cr.plugins_.Sprite.prototype.exps.Y,
 									false,
 									null
@@ -60627,7 +62934,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						73,
+						70,
 						cr.plugins_.Arr.prototype.acts.Push,
 						null,
 						1977702690727596
@@ -60648,7 +62955,7 @@ false,false,6686389590010585
 											10,
 											[
 												20,
-												59,
+												56,
 												cr.plugins_.Sprite.prototype.exps.UID,
 												false,
 												null
@@ -60670,7 +62977,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -60690,7 +62997,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.plugins_.Sprite.prototype.acts.SetAnim,
 						null,
 						6067888884040815
@@ -60705,7 +63012,7 @@ false,false,6686389590010585
 								]
 								,[
 									20,
-									28,
+									27,
 									cr.plugins_.Arr.prototype.exps.At,
 									false,
 									null
@@ -60725,14 +63032,14 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						59,
+						56,
 						cr.behaviors.Pin.prototype.acts.Pin,
 						"Pin",
 						7060712076166706
 						,[
 						[
 							4,
-							56
+							53
 						]
 ,						[
 							3,
@@ -60760,7 +63067,7 @@ false,false,6686389590010585
 						]
 					]
 ,					[
-						56,
+						53,
 						cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 						null,
 						9488200470158865
@@ -60822,7 +63129,7 @@ false,false,6686389590010585
 						],
 						[
 						[
-							56,
+							53,
 							cr.plugins_.Sprite.prototype.acts.SetInstanceVar,
 							null,
 							8025897821611162
@@ -60837,7 +63144,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,2
@@ -60858,14 +63165,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							45,
+							43,
 							cr.plugins_.Rex_Container.prototype.acts.CreateInsts,
 							null,
 							3940497591360046
 							,[
 							[
 								4,
-								46
+								44
 							]
 ,							[
 								0,
@@ -60873,7 +63180,7 @@ false,false,6686389590010585
 									4,
 									[
 										21,
-										56,
+										53,
 										false,
 										null
 										,3
@@ -60894,7 +63201,7 @@ false,false,6686389590010585
 											5,
 											[
 												21,
-												56,
+												53,
 												false,
 												null
 												,4
@@ -60906,7 +63213,7 @@ false,false,6686389590010585
 										]
 										,[
 											20,
-											56,
+											53,
 											cr.plugins_.Sprite.prototype.exps.Y,
 											false,
 											null
@@ -60928,14 +63235,14 @@ false,false,6686389590010585
 							]
 						]
 ,						[
-							46,
+							44,
 							cr.behaviors.Pin.prototype.acts.Pin,
 							"Pin",
 							9580136696432471
 							,[
 							[
 								4,
-								56
+								53
 							]
 ,							[
 								3,
@@ -60983,7 +63290,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.cnds.PickByUID,
 					null,
 					0,
@@ -60996,7 +63303,7 @@ false,false,6686389590010585
 						0,
 						[
 							20,
-							29,
+							28,
 							cr.plugins_.Arr.prototype.exps.At,
 							false,
 							null
@@ -61032,7 +63339,7 @@ false,false,6686389590010585
 							]
 							,[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -61048,7 +63355,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					32,
+					31,
 					cr.plugins_.Text.prototype.acts.SetText,
 					null,
 					6969598872728391
@@ -61070,7 +63377,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					52,
+					49,
 					cr.plugins_.Sprite.prototype.acts.SetAnim,
 					null,
 					1875233652941919
@@ -61089,7 +63396,7 @@ false,false,6686389590010585
 					]
 				]
 ,				[
-					72,
+					69,
 					cr.plugins_.Arr.prototype.acts.SetX,
 					null,
 					8933003173003057
@@ -61107,7 +63414,7 @@ false,false,6686389590010585
 							4,
 							[
 								20,
-								72,
+								69,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -61120,7 +63427,7 @@ false,false,6686389590010585
 							]
 							,[
 								20,
-								28,
+								27,
 								cr.plugins_.Arr.prototype.exps.At,
 								false,
 								null
@@ -61272,7 +63579,7 @@ false,false,6686389590010585
 				]
 			]
 ,			[
-				46,
+				44,
 				cr.plugins_.Sprite.prototype.acts.Destroy,
 				null,
 				4974856996973603
@@ -61286,7 +63593,7 @@ false,false,6686389590010585
 			7008105201859263,
 			[
 			[
-				70,
+				67,
 				cr.behaviors.Rex_MoveTo.prototype.cnds.OnHitTarget,
 				"MoveTo",
 				1,
@@ -61298,7 +63605,7 @@ false,false,6686389590010585
 			],
 			[
 			[
-				70,
+				67,
 				cr.plugins_.Sprite.prototype.acts.SetSize,
 				null,
 				2007087846584183
@@ -61320,14 +63627,14 @@ false,false,6686389590010585
 				]
 			]
 ,			[
-				70,
+				67,
 				cr.behaviors.Pin.prototype.acts.Pin,
 				"Pin",
 				4292584681023645
 				,[
 				[
 					4,
-					58
+					55
 				]
 ,				[
 					3,
@@ -61392,7 +63699,7 @@ false,false,6686389590010585
 	false,
 	0,
 	true,
-	71,
+	80,
 	false,
 	[
 	]
