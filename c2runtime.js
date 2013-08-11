@@ -49425,7 +49425,7 @@ false,false,1691237419979803
 							10,
 							[
 								2,
-								"http://localhost/roulette/game2.php?action=game&jdata="
+								"http://109.86.74.208/roulette/game2.php?action=game&jdata="
 							]
 							,[
 								20,
@@ -63694,7 +63694,7 @@ false,false,6686389590010585
 	true,
 	true,
 	true,
-	"1.2.3.8",
+	"1.2.3.10",
 	1,
 	false,
 	0,
