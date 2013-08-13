@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.mobile.games" version="1.6.6.2">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="com.mobilegames.casino" version="1.1.1.13">
 
 	<name>Casino Lobby</name>
-	<description>Modile Casino</description>
+	<description>Mobile Casino</description>
 	<author>Sergey Stupakov</author>
 
 	<gap:platforms>
